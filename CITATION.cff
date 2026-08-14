@@ -5,24 +5,35 @@ version: 2.0.0
 date-released: 2026-08-14
 license: MIT
 repository-code: "https://github.com/jayant-kumar-dev/Aegisguard-Q"
+url: "https://github.com/jayant-kumar-dev/Aegisguard-Q"
 authors:
   - family-names: Kumar
     given-names: Jayant
     affiliation: "Sobhasaria Group of Institutions, Sikar, Rajasthan, India"
     email: jayantkumar11102004@gmail.com
+    orcid: "https://orcid.org/0009-0009-6272-6601"
 keywords:
   - quantum cryptanalysis
   - learning parity with noise
   - Walsh-Hadamard transform
   - Boolean functions
   - authentication protocols
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.21934507
+    description: "Zenodo record for the accompanying manuscript, Version 1.0"
 preferred-citation:
   type: article
   title: "Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols"
   year: 2026
   month: 8
+  doi: 10.5281/zenodo.21934507
+  url: "https://doi.org/10.5281/zenodo.21934507"
+  publisher:
+    name: Zenodo
   authors:
     - family-names: Kumar
       given-names: Jayant
       affiliation: "Sobhasaria Group of Institutions, Sikar, Rajasthan, India"
-  notes: "Version 1.0. Replace this entry's DOI field with the Zenodo DOI once deposited."
+      orcid: "https://orcid.org/0009-0009-6272-6601"
+  notes: "Version 1.0 preprint. Artifact: AegisGuard-Q v2.0, commit 44d392cf886bfc420e2cba53bf907bdd9b66ceb3."

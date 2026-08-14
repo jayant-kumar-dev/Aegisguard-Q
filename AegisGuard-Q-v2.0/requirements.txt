@@ -1,0 +1,12 @@
+# AegisGuard-Q dependencies
+#
+# The core package (aegisguard_q/) is PURE PYTHON STANDARD LIBRARY and has
+# ZERO runtime dependencies. You can import and run it, and use the CLI,
+# with nothing installed beyond Python 3.9+.
+#
+# The packages below are required ONLY to run the test suite and the
+# statevector cross-validation simulator (tests/ and the hb_superposition_sim
+# scripts), not to use the tool itself.
+
+numpy>=1.21        # statevector cross-validation simulator + test vectors
+pytest>=7.0        # regression + cross-validation test suite

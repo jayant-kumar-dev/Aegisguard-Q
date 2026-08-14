@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegisguard-q"
+version = "2.0.0"
+description = "Quantum-leakage static analysis for deterministic-LPN noise functions"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Jayant Kumar", email = "jayantkumar11102004@gmail.com" }]
+keywords = ["cryptanalysis", "post-quantum", "LPN", "Walsh-Hadamard", "quantum"]
+
+# Core has ZERO runtime dependencies (pure standard library).
+dependencies = []
+
+[project.optional-dependencies]
+# Needed only to run the test suite and the statevector cross-validation.
+test = ["numpy>=1.21", "pytest>=7.0"]
+
+[project.scripts]
+aegisguard-q = "aegisguard_q.cli:main"
+
+[tool.setuptools]
+packages = ["aegisguard_q"]

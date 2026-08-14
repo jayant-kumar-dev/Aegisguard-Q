@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this software or the accompanying manuscript, please cite them as below."
+title: "AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions"
+version: 2.0.0
+date-released: 2026-08-14
+license: MIT
+repository-code: "https://github.com/jayant-kumar-dev/Aegisguard-Q"
+authors:
+  - family-names: Kumar
+    given-names: Jayant
+    affiliation: "Sobhasaria Group of Institutions, Sikar, Rajasthan, India"
+    email: jayantkumar11102004@gmail.com
+keywords:
+  - quantum cryptanalysis
+  - learning parity with noise
+  - Walsh-Hadamard transform
+  - Boolean functions
+  - authentication protocols
+preferred-citation:
+  type: article
+  title: "Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols"
+  year: 2026
+  month: 8
+  authors:
+    - family-names: Kumar
+      given-names: Jayant
+      affiliation: "Sobhasaria Group of Institutions, Sikar, Rajasthan, India"
+  notes: "Version 1.0. Replace this entry's DOI field with the Zenodo DOI once deposited."

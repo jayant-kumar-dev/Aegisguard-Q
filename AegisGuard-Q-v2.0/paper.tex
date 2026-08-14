@@ -1,0 +1,418 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{a4paper,margin=2cm}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
+\usepackage{braket}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\title{\vspace{-1.5em}\Large Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols}
+\author{Jayant Kumar\\[0.3em]
+\small Undergraduate Researcher, Department of Computer Applications,\\
+\small Sobhasaria Group of Institutions, Sikar, Rajasthan, India\\
+\small \texttt{jayantkumar11102004@gmail.com}}
+\date{\small Version 1.0 --- August 2026}
+
+\begin{document}
+\twocolumn[
+\begin{@twocolumnfalse}
+\maketitle
+\begin{abstract}
+\noindent Recent work showed that LPN-based authentication protocols can be vulnerable to quantum chosen-message (Q2) attacks because independently sampled Bernoulli noise becomes a global phase under a coherent superposition query. This paper studies a narrower and explicitly separated question: how does a known deterministic noise function affect the Q2 measurement distribution of an HB-style phase oracle? We prove an exact Walsh-spectral shift identity, derive the resulting single-query distribution, and formulate two information-theoretic consequences. First, for a uniformly random secret, the mutual information between the secret and the measured outcome is exactly $n - H(P_g)$, where $P_g$ is the squared-normalized Walsh spectrum of the noise function. Second, repeated observations identify the secret only up to the translation stabilizer of $P_g$. Bent functions therefore give zero information in this oracle model, while affine functions reveal the secret completely in one query. We retain a finite-sample empirical-mode bound for the unique-maximum case and derive a noise-density--spectral-flatness trade-off that forces the noise density toward $1/2$ as the spectrum becomes flat. We also analyze an idealized joint-input extension corresponding to the algebraic form of HB+, while explicitly avoiding a claim that this oracle is identical to the physical Q2 interface of the protocol. The accompanying AegisGuard-Q artifact computes the spectrum, mutual information, and translation stabilizer and reproduces the numerical results reported here. The paper does not claim classical hardness or quantum security for keyed deterministic-LPN families; those questions remain open.
+
+\vspace{0.5em}
+\noindent\textbf{Keywords:} Quantum cryptanalysis; Learning Parity with Noise; Q2 attacks; Walsh-Hadamard transform; Boolean functions; Bernstein-Vazirani; information leakage; authentication protocols.
+\end{abstract}
+\vspace{1.5em}
+\end{@twocolumnfalse}
+]
+
+\section{Introduction and Scope}
+
+LPN-based authentication protocols were introduced as lightweight constructions whose classical security is related to the difficulty of learning a linear function in the presence of noise. Recent work by Cid, Elkouss, and Goul\~ao demonstrated superposition attacks against the HB family in the Q2 model and explained why independently sampled Bernoulli noise can disappear as an unobservable global phase in a coherent query~\cite{cid2026}. Their work motivates examination of deterministic-noise variants. The present paper addresses the spectral structure of that question, but deliberately separates a tractable known-noise oracle from the harder keyed-noise construction.
+
+\paragraph{Research question.} Let $x \in \{0,1\}^n$ be a secret and let $g : \{0,1\}^n \to \{0,1\}$ be a fixed, known Boolean function. For the phase oracle
+\[ h(a) = a \cdot x \oplus g(a), \]
+what information about $x$ is contained in a Bernstein--Vazirani/Fourier-sampling measurement, and what can repeated independent measurements identify?
+
+The distinction between known and keyed noise is essential. If $g$ is public, a classical response $z = a \cdot x \oplus g(a)$ immediately gives $a \cdot x = z \oplus g(a)$, so the construction is not a classical LPN-secure protocol. In a keyed construction $g_s(a)$, the function itself depends on a secret $s$; the Walsh spectrum used in the analysis may then be unknown to the adversary, and the classical hardness problem is separate. We therefore use the known-$g$ model as an exact spectral laboratory, not as a claim of a deployable secure deterministic-LPN protocol.
+
+\paragraph{Contributions.}
+\begin{enumerate}\itemsep0.1em
+\item We prove the exact Walsh shift identity for the known-$g$ phase oracle.
+\item We derive the exact single-query mutual information $I(X;W) = n - H(P_g)$.
+\item We characterize unlimited-query identifiability through the translation stabilizer of $P_g$.
+\item We state a finite-sample empirical-mode theorem with the required union-bound factor and its spectral-gap condition.
+\item We prove a noise-density--spectral-flatness trade-off.
+\item We reformulate the HB+ discussion as an idealized joint-input extension rather than an unqualified protocol attack.
+\item We provide AegisGuard-Q v2, which computes the new metrics and reproduces the numerical tables.
+\end{enumerate}
+
+\section{Related Work}
+
+\paragraph{The HB family.} The HB protocol originates with Hopper and
+Blum~\cite{hopper2001}, who proposed lightweight human-executable
+authentication whose security rests on the hardness of learning parity with
+noise. Juels and Weis~\cite{juels2005} extended it to HB+ for pervasive and
+RFID devices, adding a tag-generated blinding vector and a proof of security
+against active attacks. Katz, Shin and Smith~\cite{katz2010} established
+security under parallel and concurrent composition, reducing round complexity
+to a constant. Gilbert, Robshaw and Sibert~\cite{gilbert2005} gave a
+man-in-the-middle attack on HB+, which motivated HB\#~\cite{gilbert2008}, a
+matrix-secret variant; Ouafi, Overbeck and Vaudenay~\cite{ouafi2008}
+subsequently analyzed HB\# against a stronger man-in-the-middle adversary.
+Kiltz et al.~\cite{kiltz2011} give a broader treatment of authentication from
+hard learning problems. All of these works concern classical adversaries.
+
+\paragraph{Hardness of LPN.} The underlying assumption traces to the
+intractability of decoding random linear codes~\cite{berlekamp1978} and to
+noise-tolerant learning in the statistical query model~\cite{kearns1998}. The
+best known classical algorithms follow Blum, Kalai and
+Wasserman~\cite{blum2003}, with refinements by Levieil and
+Fouque~\cite{levieil2006} and connections to subset-sum and decoding by
+Lyubashevsky~\cite{lyubashevsky2005}; Pietrzak~\cite{pietrzak2012} surveys the
+cryptographic applications. Nothing in the present paper bears on classical
+LPN hardness.
+
+\paragraph{Superposition (Q2) adversaries.} The Q2 model grants the adversary
+coherent access to a keyed oracle. Damgård et al.~\cite{damgard2011} formalized
+superposition attacks on cryptographic protocols; Kuwakado and
+Morii~\cite{kuwakado2010} showed that Simon's algorithm breaks the three-round
+Feistel construction in this model, and Boneh and
+Zhandry~\cite{boneh2013mac,boneh2013sig} developed quantum security notions for
+message authentication codes, signatures and chosen-ciphertext security. Cid,
+Elkouss and Goul\~ao~\cite{cid2026} brought this line to the HB family,
+observing that independently sampled Bernoulli noise contributes only a global
+phase under a coherent query and is therefore invisible to the measurement --
+the observation the present paper takes as its starting point. Cross, Smith and
+Smolin~\cite{cross2015} study quantum learning that is robust to noise, and
+Shiu~\cite{shiu2026} investigates quantum approaches to LPN via Simon's promise
+and sample generation; both concern the LPN problem itself rather than the
+leakage structure of a fixed deterministic noise function.
+
+\paragraph{Fourier sampling and Walsh spectra.} The measurement identity used
+throughout is the Bernstein--Vazirani/Fourier-sampling
+mechanism~\cite{bernstein1997,simon1997}, specialized to Boolean-function
+testing and learning by Floess, Andersson and
+Hillery~\cite{floess2013,hillery2011}. Query-efficient access to large Walsh
+coefficients is the quantum Goldreich--Levin
+problem~\cite{goldreich1989,adcock2002,li2020}; Bera and
+Tharrmashastha~\cite{bera2021} give quantum and randomized algorithms for
+estimating nonlinearity, which is determined by the largest Walsh coefficient.
+
+\paragraph{Boolean functions.} Bent functions were introduced by
+Rothaus~\cite{rothaus1976}; Carlet~\cite{carlet2021} gives a comprehensive
+treatment of Walsh spectra, bent and plateaued functions, the
+Maiorana--McFarland construction used for our benchmarks, and the
+nonexistence of bent functions in odd dimension. Boyle et al.~\cite{boyle2021}
+study keyed weak pseudorandom function families in $\mathrm{AC}^0[\mathrm{MOD2}]$
+and their relationship to LPN, illustrating why a keyed noise family
+$g_s$ is conceptually distinct from a public deterministic $g$. The
+information-theoretic and concentration tools are
+standard~\cite{cover2006,hoeffding1963}.
+
+\paragraph{Position of this work.} The contribution here is not a new quantum
+algorithm and not a claim about classical LPN hardness. It is an exact
+characterization of the measurement distribution induced by a \emph{known}
+deterministic noise function in the Q2 phase-oracle model, together with the
+information-theoretic and finite-sample consequences of that characterization.
+We did not identify prior work giving this exact Walsh-spectral and
+information-theoretic characterization for the specified known-deterministic-noise
+phase-oracle model. We make no broader claim: the deterministic-noise question
+raised in~\cite{cid2026} is not asserted to be absent from the literature, only
+that we found no prior treatment in these particular terms; see
+Section~\ref{sec:limits}.
+
+\section{Models and Notation}
+
+All vectors are over $\mathbb{F}_2$. Let $x \in \mathbb{F}_2^n$ be uniformly random and let $g : \mathbb{F}_2^n \to \mathbb{F}_2$ be fixed and known. Define
+\[ h_{x,g}(a) = a \cdot x \oplus g(a). \]
+The corresponding ideal phase oracle is
+\[ O_{x,g}\ket{a} = (-1)^{h_{x,g}(a)}\ket{a}. \]
+Applying a uniform superposition and measuring in the Fourier/BV basis produces an $n$-bit outcome $W$.
+
+The known-$g$ model is classically insecure as an authentication construction, because a classical sample gives $a \cdot x = z \oplus g(a)$. Its purpose is exact characterization of Q2 leakage. A keyed model $g_s$ is outside the security claims of this paper: the results below do not establish the hardness or security of keyed deterministic-LPN families.
+
+\section{Exact Walsh-Spectral Characterization}
+
+For a Boolean function $g$, define the unnormalized Walsh-Hadamard transform
+\[ W_g(u) = \sum_{a \in \mathbb{F}_2^n} (-1)^{g(a) \oplus a \cdot u}. \]
+Standard Fourier-sampling theory gives probability $|W_f(w)|^2/4^n$ for a phase oracle of Boolean function $f$~\cite{floess2013,hillery2011}.
+
+By Parseval's identity for the Walsh transform,
+\[ \sum_{u} W_g(u)^2 = 2^{2n}, \qquad \text{so} \qquad \sum_u P_g(u) = 1, \]
+confirming that $P_g$ as defined below is a probability distribution on
+$\mathbb{F}_2^n$.
+
+Throughout we distinguish two normalizations that are easily conflated. The
+normalized Walsh amplitude is $\lambda = \max_u |W_g(u)|/2^n$, whereas the
+largest measurement probability is $p_{\max} = \max_u P_g(u) = \lambda^2$.
+Theorem~\ref{thm:tradeoff} bounds $\tau$ in terms of $\lambda$; the mode gap
+$\gamma$ of Theorem~\ref{thm:mode} is a difference of probabilities, not of
+amplitudes.
+
+\begin{lemma}[Walsh shift identity]\label{lem:shift}
+For $h(a) = a \cdot x \oplus g(a)$,
+\[ W_h(w) = W_g(w \oplus x). \]
+Consequently,
+\[ \Pr[W = w \mid X = x] = P_g(w \oplus x), \quad P_g(u) = \frac{W_g(u)^2}{4^n}. \]
+\end{lemma}
+
+\begin{proof}
+Substituting $h$ into the Walsh transform gives
+\[ W_h(w) = \sum_a (-1)^{g(a) \oplus a \cdot (w \oplus x)} = W_g(w \oplus x). \]
+Squaring and normalizing yields the probability identity.
+\end{proof}
+
+Thus the secret translates the spectrum-derived distribution without changing its shape.
+
+\section{Information-Theoretic Leakage}
+
+\begin{theorem}[Exact single-query mutual information]\label{thm:mi}
+Let $X$ be uniform on $\mathbb{F}_2^n$ and let $W = X \oplus U$, where $U$ has distribution $P_g$. Then
+\[ I(X;W) = n - H(P_g), \]
+where $H(P_g) = -\sum_u P_g(u)\log_2 P_g(u)$.
+\end{theorem}
+
+\begin{proof}
+Since $X$ is uniform and $W = X \oplus U$, $W$ is uniform, so $H(W) = n$. Conditioned on $X$, $W$ is a translated copy of $U$, so $H(W \mid X) = H(U) = H(P_g)$. Therefore $I(X;W) = H(W) - H(W \mid X) = n - H(P_g)$.
+\end{proof}
+
+\begin{corollary}[Affine noise]\label{cor:affine}
+If $g(a) = a \cdot s \oplus c$, then $P_g$ is a point mass at $s$, $I(X;W) = n$, and $W = X \oplus s$ recovers the secret exactly in one query.
+\end{corollary}
+
+\begin{corollary}[Bent noise]\label{cor:bent}
+If $n$ is even and $g$ is bent, $|W_g(u)| = 2^{n/2}$ for every $u$. Hence $P_g$ is uniform, $H(P_g) = n$, and $I(X;W) = 0$.
+\end{corollary}
+
+\section{Multi-Query Identifiability}
+
+\begin{definition}[Translation stabilizer]\label{def:stab}
+\[ \mathrm{Stab}(P_g) = \{t \in \mathbb{F}_2^n : P_g(u) = P_g(u \oplus t)\ \forall u\}. \]
+\end{definition}
+
+\begin{definition}[Spectral ambiguity index]\label{def:sai}
+$\mathrm{SAI}(g)$ is the number of indices $u$ attaining $\max_u |W_g(u)|$, i.e.\ the number of tied maxima of $P_g$.
+\end{definition}
+
+Note that $\mathrm{SAI}$ and $|\mathrm{Stab}(P_g)|$ are distinct quantities: the former counts tied maxima, the latter measures translation symmetry of the whole distribution. A distribution may have tied maxima yet a trivial stabilizer.
+
+\begin{theorem}[Exact observational equivalence]\label{thm:stab}
+For secrets $x$ and $x'$, the complete distributions of all independent Fourier-sampling observations are identical if and only if $x \oplus x' \in \mathrm{Stab}(P_g)$. Consequently, with arbitrarily many independent queries and known $g$, the secret is identifiable exactly if and only if $\mathrm{Stab}(P_g) = \{0\}$.
+\end{theorem}
+
+\begin{proof}
+By the Walsh shift identity, the conditional distribution for $x$ is $P_g(w \oplus x)$. Equality with the distribution for $x'$ for every $w$ is equivalent to $P_g(u) = P_g(u \oplus x \oplus x')$ for every $u$, which is exactly the stabilizer condition. Independent repetitions cannot distinguish identical distributions, while distinct finite distributions are consistently distinguishable as the number of samples grows.
+\end{proof}
+
+A bent function has uniform $P_g$, so its stabilizer is all of $\mathbb{F}_2^n$ and no amount of repetition identifies $x$ through this channel. An affine function has a point-mass distribution and trivial stabilizer.
+
+\section{Finite-Sample Recovery in the Unique-Mode Case}
+
+Suppose $P_g$ has a unique largest probability $p_1$ and second-largest probability $p_2$, with gap $\gamma = p_1 - p_2 > 0$. The most likely outcome is $w^* = x \oplus u^*$, where $u^*$ maximizes $P_g$.
+
+\begin{theorem}[Empirical-mode bound]\label{thm:mode}
+For $0 < \varepsilon < 1$, independent samples satisfy
+\[ N \geq \frac{2}{\gamma^2}\left(n \ln 2 + \ln \frac{1}{\varepsilon}\right) \]
+sufficient to make the empirical mode equal $w^*$ with probability at least $1 - \varepsilon$.
+\end{theorem}
+
+\begin{proof}
+For every competitor $w$, define a score in $\{-1,0,+1\}$ according as the sample equals $w^*$, neither, or $w$. Its expectation is at least $\gamma$. Hoeffding's inequality~\cite{hoeffding1963} gives a per-competitor error probability at most $\exp(-N\gamma^2/2)$. There are fewer than $2^n$ competitors. A union bound gives failure probability below $2^n \exp(-N\gamma^2/2)$, yielding the stated bound.
+\end{proof}
+
+The theorem is a statistical upper bound, not a polynomial-query security statement. If $\gamma$ is exponentially small, the required $N$ can be exponential; polynomial-query recovery additionally requires an inverse-polynomial lower bound on $\gamma$.
+
+\section{Noise-Density--Spectral-Flatness Trade-off}
+
+Let $\tau = \mathrm{wt}(g)/2^n$. Since
+\[ W_g(0) = 2^n - 2\,\mathrm{wt}(g) = 2^n(1 - 2\tau) \]
+and $|W_g(0)| \leq \max_u |W_g(u)|$, we obtain:
+
+\begin{theorem}\label{thm:tradeoff}
+\[ |1 - 2\tau| \leq \frac{\max_u |W_g(u)|}{2^n}. \]
+\end{theorem}
+
+Equivalently, for $\lambda = \max_u |W_g(u)|/2^n$,
+\[ \tau \in \left[\frac{1-\lambda}{2}, \frac{1+\lambda}{2}\right]. \]
+For bent $g$, $\lambda = 2^{-n/2}$ and $|\tau - 1/2| = 2^{-n/2-1}$. Thus flattening the spectrum forces deterministic noise density toward one half. This is a mathematical design tension, not a proof of security or insecurity for keyed deterministic-LPN protocols.
+
+\section{Idealized Joint-Input Extension}
+
+The algebraic form of an HB+ response is $z = a \cdot x \oplus b \cdot y \oplus e$~\cite{cid2026}. Consider the idealized phase oracle
+\[ O\ket{a}\ket{b} = (-1)^{a \cdot x \oplus b \cdot y \oplus g(a,b)}\ket{a}\ket{b}. \]
+With $\tilde{a} = (a,b)$, $\tilde{x} = (x,y)$, and $\tilde{g}(\tilde{a}) = g(a,b)$, the Walsh shift identity applies on $2n$ bits. We do not claim that this idealized oracle is automatically identical to the physical Q2 interface of HB+. A protocol-level attack would require a coherent representation of the message flow and the source of $b$.
+
+\section{Hybrid Noise}
+
+Consider $e = g(a) \oplus r$, where $r$ is sampled independently once per oracle call and remains fixed during coherent evaluation. Then
+\[ O_{g,r}\ket{a} = (-1)^r(-1)^{a \cdot x \oplus g(a)}\ket{a}. \]
+The factor $(-1)^r$ is a global phase and does not affect measurement probabilities. Under this exact sampling model, independent per-call Bernoulli noise therefore does not change the Fourier-sampling distribution. This is a direct extension of the global-phase mechanism identified in~\cite{cid2026}, not a separate claim of a new attack.
+
+\section{Experimental Results}
+
+All numerical results in this section were generated by AegisGuard-Q v2 using exact Walsh transforms, and are reproduced by running \texttt{experiments.py} in the accompanying repository. Pseudorandom benchmark instances use fixed documented seeds ($10$, $2$, $10$ for $n = 4, 6, 8$); the $n = 6$ seed was selected so that the instance has a unique spectral mode, the regime in which Theorem~\ref{thm:mode} applies. The Monte-Carlo study uses a fixed generator seed. The benchmark families are affine functions, Maiorana--McFarland bent functions~\cite{carlet2021} for even $n$, seeded random Boolean functions, and odd-dimensional semibent functions obtained by extending a bent function on $n-1$ variables independently of the final bit.
+
+The results reproduce the theoretical endpoints. Affine functions have $n$ bits of single-query information and trivial stabilizer. Bent functions have zero information and full stabilizer. The odd-dimensional semibent benchmarks consistently expose one bit of information while leaving a $2^{n-1}$-element observational equivalence class. The random $n = 6$ instance has a unique mode with $\gamma = 0.0390625$. For that instance and $\varepsilon = 0.05$, Theorem~\ref{thm:mode} gives $N \geq 9378$. Direct multinomial simulation over 3000 trials produced empirical failure rates of $0.0963$, $0.0273$, $0.0003$, $0.0003$, $0.0000$, and $0.0000$ for $N = 250, 500, 1000, 2000, 5000, 9378$, respectively. The theorem is therefore conservative on this instance, as expected from the union bound.
+
+\begin{table*}[t]
+\centering
+\caption{Exact spectral metrics reproduced by AegisGuard-Q v2. $\lambda = \max|W_g|/2^n$, $H$ is spectral measurement entropy, MI is $I(X;W)$, $|S| = |\mathrm{Stab}(P_g)|$, and SAI is the number of tied spectral maxima (Definition~\ref{def:sai}).}
+\label{tab:main}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Family & $n$ & $\tau$ & $\lambda$ & $H$ & MI & $|S|$ & SAI & $\gamma$ \\
+\midrule
+Affine & 4 & 0.5000 & 1.0000 & 0.0000 & 4.0000 & 1 & 1 & 1.0000 \\
+Bent & 4 & 0.3750 & 0.2500 & 4.0000 & 0.0000 & 16 & 16 & 0 \\
+Random & 4 & 0.3750 & 0.5000 & 3.0000 & 1.0000 & 2 & 2 & 0 \\
+Affine & 6 & 0.5000 & 1.0000 & 0.0000 & 6.0000 & 1 & 1 & 1.0000 \\
+Bent & 6 & 0.4375 & 0.1250 & 6.0000 & 0.0000 & 64 & 64 & 0 \\
+Random & 6 & 0.5156 & 0.3438 & 4.9959 & 1.0041 & 1 & 1 & 0.0391 \\
+Affine & 8 & 0.5000 & 1.0000 & 0.0000 & 8.0000 & 1 & 1 & 1.0000 \\
+Bent & 8 & 0.4688 & 0.0625 & 8.0000 & 0.0000 & 256 & 256 & 0 \\
+Random & 8 & 0.4453 & 0.1875 & 6.8601 & 1.1399 & 1 & 1 & 0.0056 \\
+Odd-semibent & 3 & 0.2500 & 0.5000 & 2.0000 & 1.0000 & 4 & 4 & 0 \\
+Odd-semibent & 5 & 0.3750 & 0.2500 & 4.0000 & 1.0000 & 16 & 16 & 0 \\
+Odd-semibent & 7 & 0.4375 & 0.1250 & 6.0000 & 1.0000 & 64 & 64 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[t]
+\centering
+\caption{Empirical mode failure for the seeded random $n = 6$ instance.}
+\label{tab:mode}
+\begin{tabular}{rr}
+\toprule
+$N$ & Failure rate \\
+\midrule
+250 & 0.0963 \\
+500 & 0.0273 \\
+1000 & 0.0003 \\
+2000 & 0.0003 \\
+5000 & 0.0000 \\
+9378 & 0.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Artifact and Reproducibility}
+
+AegisGuard-Q v2 implements the fast Walsh-Hadamard transform, spectral probabilities, entropy, exact mutual information, translation stabilizer, spectral ambiguity index, probability gap, and the benchmark functions used in the experiments. The repository version accompanying this manuscript contains updated tests for affine, bent, odd-semibent, and Parseval identities, together with the experiment driver that reproduces Tables~\ref{tab:main} and~\ref{tab:mode}. Exact spectrum computation remains exponential in $n$; the artifact is intended for verification and small/medium benchmark instances, not scalable cryptanalysis.
+
+\section{Limitations and Open Problems}\label{sec:limits}
+
+The known-$g$ model is classically insecure and is used only for exact spectral analysis. For keyed $g_s$, the adversary may not know the spectrum, so the present results do not solve the keyed deterministic-LPN security problem. The empirical-mode theorem assumes independent non-adaptive measurements and does not provide a polynomial-query guarantee without a gap condition. The idealized HB+ extension does not establish a protocol-level Q2 attack. Adaptive attacks, keyed-function families, HB\#, and concrete protocol completeness/error rates remain outside the present scope. Section~2 reflects a systematic survey of the HB/LPN, superposition-attack, Fourier-sampling and Boolean-function literature; every reference has been checked against its published record. No automated or manual search can certify novelty, however, and we make no priority claim: independent verification by a subject-area specialist remains appropriate.
+
+\section{Conclusion}
+
+For a known Boolean noise function $g$, the Q2 Fourier-sampling distribution is exactly a translation of the squared Walsh spectrum of $g$. Single-query information leakage is $n - H(P_g)$, while unlimited-query identifiability is governed exactly by the translation stabilizer of $P_g$. Affine functions therefore reveal the secret completely, bent functions reveal zero information through this channel, and intermediate functions occupy a continuum described by their spectral distribution and symmetries. A finite-sample mode bound quantifies recovery when the maximum is unique, while the noise-density theorem shows that flattening the spectrum forces deterministic noise density toward one half. These statements characterize a precise oracle-level phenomenon; they do not establish classical hardness or full protocol security for keyed deterministic-LPN variants.
+
+\section*{Artifact Availability and Reproducibility}
+
+AegisGuard-Q v2 is available at
+\url{https://github.com/jayant-kumar-dev/Aegisguard-Q}. The release
+accompanying this manuscript is tagged \texttt{v2.0}. The repository contains
+the analysis library, the test suite, the benchmark noise-function
+constructors, and the experiment driver.
+
+Tables~\ref{tab:main} and~\ref{tab:mode} are regenerated in full by
+
+\begin{center}\texttt{python experiments.py}\end{center}
+
+\noindent and the closed-form predictions of Theorems~\ref{thm:mi},
+\ref{thm:mode} and~\ref{thm:tradeoff} are asserted on every row by the same
+driver, which exits non-zero on any mismatch. The regression suite
+(\texttt{python -m pytest tests/}, 25 tests) additionally cross-validates the
+library against an independent statevector simulator.
+
+All randomness is seeded. The pseudorandom benchmark instances use seeds
+$10$, $2$ and $10$ for $n = 4, 6, 8$ respectively (the $n=6$ seed selected so
+that the instance has a unique spectral mode); the Monte-Carlo study of
+Table~\ref{tab:mode} uses generator seed $20260814$ with $3000$ trials per
+value of $N$. Reported figures were produced with Python 3.12.3, NumPy 2.4.4
+and pytest 9.1.1; the exact commit is recorded in the tagged release.
+
+\begin{thebibliography}{99}
+\footnotesize
+
+\bibitem{cid2026} C. Cid, D. Elkouss, and M. Goul\~ao, ``Superposition Attacks Against LPN-Based Authentication Protocols,'' \emph{IACR Communications in Cryptology}, 3(1):17, 2026. doi:10.62056/abhey7n4e.
+
+\bibitem{hopper2001} N. J. Hopper and M. Blum, ``Secure Human Identification Protocols,'' in \emph{Advances in Cryptology -- ASIACRYPT 2001}, LNCS 2248, pp. 52--66, Springer, 2001. doi:10.1007/3-540-45682-1\_4.
+
+\bibitem{juels2005} A. Juels and S. A. Weis, ``Authenticating Pervasive Devices with Human Protocols,'' in \emph{Advances in Cryptology -- CRYPTO 2005}, LNCS 3621, pp. 293--308, Springer, 2005. doi:10.1007/11535218\_18.
+
+\bibitem{katz2010} J. Katz, J. S. Shin, and A. Smith, ``Parallel and Concurrent Security of the HB and HB+ Protocols,'' \emph{Journal of Cryptology}, 23(3):402--421, 2010. doi:10.1007/s00145-010-9061-2.
+
+\bibitem{gilbert2005} H. Gilbert, M. J. B. Robshaw, and H. Sibert, ``An Active Attack Against HB+ -- A Provably Secure Lightweight Authentication Protocol,'' Cryptology ePrint Archive, Report 2005/237, 2005.
+
+\bibitem{gilbert2008} H. Gilbert, M. J. B. Robshaw, and Y. Seurin, ``HB\#: Increasing the Security and Efficiency of HB+,'' in \emph{Advances in Cryptology -- EUROCRYPT 2008}, LNCS 4965, pp. 361--378, Springer, 2008. doi:10.1007/978-3-540-78967-3\_21.
+
+\bibitem{ouafi2008} K. Ouafi, R. Overbeck, and S. Vaudenay, ``On the Security of HB\# Against a Man-in-the-Middle Attack,'' in \emph{Advances in Cryptology -- ASIACRYPT 2008}, LNCS 5350, pp. 108--124, Springer, 2008.
+
+\bibitem{kiltz2011} E. Kiltz, K. Pietrzak, D. Cash, A. Jain, and D. Venturi, ``Efficient Authentication from Hard Learning Problems,'' in \emph{Advances in Cryptology -- EUROCRYPT 2011}, LNCS 6632, pp. 7--26, Springer, 2011. doi:10.1007/978-3-642-20465-4\_3.
+
+\bibitem{berlekamp1978} E. R. Berlekamp, R. J. McEliece, and H. C. A. van Tilborg, ``On the Inherent Intractability of Certain Coding Problems,'' \emph{IEEE Transactions on Information Theory}, 24(3):384--386, 1978.
+
+\bibitem{kearns1998} M. Kearns, ``Efficient Noise-Tolerant Learning from Statistical Queries,'' \emph{Journal of the ACM}, 45(6):983--1006, 1998.
+
+\bibitem{blum2003} A. Blum, A. Kalai, and H. Wasserman, ``Noise-Tolerant Learning, the Parity Problem, and the Statistical Query Model,'' \emph{Journal of the ACM}, 50(4):506--519, 2003.
+
+\bibitem{lyubashevsky2005} V. Lyubashevsky, ``The Parity Problem in the Presence of Noise, Decoding Random Linear Codes, and the Subset Sum Problem,'' in \emph{APPROX/RANDOM 2005}, LNCS 3624, pp. 378--389, Springer, 2005.
+
+\bibitem{levieil2006} \'E. Levieil and P.-A. Fouque, ``An Improved LPN Algorithm,'' in \emph{Security and Cryptography for Networks (SCN 2006)}, LNCS 4116, pp. 348--359, Springer, 2006.
+
+\bibitem{pietrzak2012} K. Pietrzak, ``Cryptography from Learning Parity with Noise,'' in \emph{SOFSEM 2012: Theory and Practice of Computer Science}, LNCS 7147, pp. 99--114, Springer, 2012.
+
+\bibitem{damgard2011} I. Damg\aa rd, J. Funder, J. B. Nielsen, and L. Salvail, ``Superposition Attacks on Cryptographic Protocols,'' CoRR abs/1108.6313, 2011.
+
+\bibitem{kuwakado2010} H. Kuwakado and M. Morii, ``Quantum Distinguisher Between the 3-Round Feistel Cipher and the Random Permutation,'' in \emph{2010 IEEE International Symposium on Information Theory}, pp. 2682--2685, 2010. doi:10.1109/ISIT.2010.5513654.
+
+\bibitem{boneh2013mac} D. Boneh and M. Zhandry, ``Quantum-Secure Message Authentication Codes,'' in \emph{Advances in Cryptology -- EUROCRYPT 2013}, LNCS 7881, pp. 592--608, Springer, 2013. doi:10.1007/978-3-642-38348-9\_35.
+
+\bibitem{boneh2013sig} D. Boneh and M. Zhandry, ``Secure Signatures and Chosen Ciphertext Security in a Quantum Computing World,'' in \emph{Advances in Cryptology -- CRYPTO 2013}, LNCS 8043, pp. 361--379, Springer, 2013. doi:10.1007/978-3-642-40084-1\_21.
+
+\bibitem{cross2015} A. W. Cross, G. Smith, and J. A. Smolin, ``Quantum Learning Robust Against Noise,'' \emph{Physical Review A}, 92:012327, 2015.
+
+\bibitem{shiu2026} D. Shiu, ``Quantum Approaches to Learning Parity with Noise,'' arXiv:2602.19819 [cs.CR], 2026.
+
+\bibitem{bernstein1997} E. Bernstein and U. Vazirani, ``Quantum Complexity Theory,'' \emph{SIAM Journal on Computing}, 26(5):1411--1473, 1997.
+
+\bibitem{simon1997} D. R. Simon, ``On the Power of Quantum Computation,'' \emph{SIAM Journal on Computing}, 26(5):1474--1483, 1997.
+
+\bibitem{goldreich1989} O. Goldreich and L. A. Levin, ``A Hard-Core Predicate for All One-Way Functions,'' in \emph{Proc.\ 21st ACM Symposium on Theory of Computing (STOC)}, pp. 25--32, 1989.
+
+\bibitem{adcock2002} M. Adcock and R. Cleve, ``A Quantum Goldreich--Levin Theorem with Cryptographic Applications,'' in \emph{STACS 2002}, LNCS 2285, pp. 323--334, Springer, 2002.
+
+\bibitem{li2020} H. Li, ``Quantum Algorithms for the Goldreich--Levin Learning Problem,'' \emph{Quantum Information Processing}, 19:395, 2020. doi:10.1007/s11128-020-02839-7.
+
+\bibitem{floess2013} D. Floess, E. Andersson, and M. Hillery, ``Quantum Algorithms for Testing and Learning Boolean Functions,'' \emph{Mathematical Structures in Computer Science}, 23(2):386--398, 2013. (Conference version: EPTCS 26, pp. 101--108, 2010, doi:10.4204/EPTCS.26.9.)
+
+\bibitem{hillery2011} M. Hillery and E. Andersson, ``Quantum Tests for the Linearity and Permutation Invariance of Boolean Functions,'' \emph{Physical Review A}, 84:062329, 2011.
+
+\bibitem{bera2021} D. Bera and S. Tharrmashastha, ``Quantum and Randomised Algorithms for Non-linearity Estimation,'' \emph{ACM Transactions on Quantum Computing}, 2(2):5:1--5:27, 2021. doi:10.1145/3456509.
+
+\bibitem{rothaus1976} O. S. Rothaus, ``On `Bent' Functions,'' \emph{Journal of Combinatorial Theory, Series A}, 20(3):300--305, 1976.
+
+\bibitem{carlet2021} C. Carlet, \emph{Boolean Functions for Cryptography and Coding Theory}, Cambridge University Press, 2021.
+
+\bibitem{boyle2021} E. Boyle, G. Couteau, N. Gilboa, Y. Ishai, L. Kohl, and P. Scholl, ``Low-Complexity Weak Pseudorandom Functions in $\mathrm{AC}^0[\mathrm{MOD2}]$,'' in \emph{Advances in Cryptology -- CRYPTO 2021}, LNCS 12828, pp. 487--516, Springer, 2021. doi:10.1007/978-3-030-84259-8\_17.
+
+\bibitem{cover2006} T. M. Cover and J. A. Thomas, \emph{Elements of Information Theory}, 2nd ed., Wiley-Interscience, 2006.
+
+\bibitem{hoeffding1963} W. Hoeffding, ``Probability Inequalities for Sums of Bounded Random Variables,'' \emph{Journal of the American Statistical Association}, 58(301):13--30, 1963.
+
+\end{thebibliography}
+
+\end{document}

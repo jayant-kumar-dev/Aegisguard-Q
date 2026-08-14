@@ -323,7 +323,8 @@ For a known Boolean noise function $g$, the Q2 Fourier-sampling distribution is 
 
 AegisGuard-Q v2 is available at
 \url{https://github.com/jayant-kumar-dev/Aegisguard-Q}. The release
-accompanying this manuscript is tagged \texttt{v2.0}. The repository contains
+accompanying this manuscript is tagged \texttt{v2.0}, at commit
+\texttt{44d392cf886bfc420e2cba53bf907bdd9b66ceb3}. The repository contains
 the analysis library, the test suite, the benchmark noise-function
 constructors, and the experiment driver.
 
@@ -342,7 +343,9 @@ $10$, $2$ and $10$ for $n = 4, 6, 8$ respectively (the $n=6$ seed selected so
 that the instance has a unique spectral mode); the Monte-Carlo study of
 Table~\ref{tab:mode} uses generator seed $20260814$ with $3000$ trials per
 value of $N$. Reported figures were produced with Python 3.12.3, NumPy 2.4.4
-and pytest 9.1.1; the exact commit is recorded in the tagged release.
+and pytest 9.1.1 on Linux, and were independently reproduced without
+modification on Windows under Python 3.14.5 with NumPy 2.4.4 and
+pytest 9.1.1.
 
 \begin{thebibliography}{99}
 \footnotesize

@@ -1,10 +1,12 @@
 # AegisGuard-Q
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21934507.svg)](https://doi.org/10.5281/zenodo.21934507)
+
 **Quantum-leakage static analysis for deterministic-noise HB-style authentication protocols.**
 
 AegisGuard-Q takes a deterministic Boolean noise function `g: {0,1}ⁿ → {0,1}` and computes, exactly, how much a quantum adversary learns about the secret key of an HB-style authentication protocol that uses `g` as its noise source — how many bits leak from a single superposition query, what remains identifiable after unlimited queries, how many queries a recovery attack needs, and whether the choice of `g` is even usable as classical noise.
 
-It is the reference implementation accompanying the manuscript *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 1.0, August 2026), included here as `paper.tex`.
+It is the reference implementation accompanying the manuscript *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 1.0, August 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507), included here as `paper.tex`.
 
 ---
 
@@ -192,7 +194,8 @@ The bound is conservative on this instance, as expected from the union bound.
 | Monte-Carlo generator seed | `20260814` |
 | Trials per `N` | `3000` |
 | `ε` | `0.05` |
-| Python / NumPy / pytest | 3.12.3 / 2.4.4 / 9.1.1 |
+| Reference environment | Python 3.12.3 / NumPy 2.4.4 / pytest 9.1.1 (Linux) |
+| Independently reproduced on | Windows, Python 3.14.5 / NumPy 2.4.4 / pytest 9.1.1 |
 
 ---
 
@@ -265,9 +268,7 @@ Please cite **both** the software and the manuscript:
 
 > Kumar, J. (2026). *AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions*, version 2.0.0. https://github.com/jayant-kumar-dev/Aegisguard-Q
 
-> Kumar, J. (2026). *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*, Version 1.0.
-
-<!-- After the Zenodo deposit, add the DOI here and in CITATION.cff. -->
+> Kumar, J. (2026). *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*, Version 1.0. Zenodo. https://doi.org/10.5281/zenodo.21934507
 
 And the foundational work this builds on:
 

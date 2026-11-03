@@ -6,7 +6,7 @@
 
 AegisGuard-Q takes a deterministic Boolean noise function `g: {0,1}ⁿ → {0,1}` and computes, exactly, how much a quantum adversary learns about the secret key of an HB-style authentication protocol that uses `g` as its noise source — how many bits leak from a single superposition query, what remains identifiable after unlimited queries, how many queries a recovery attack needs, and whether the choice of `g` is even usable as classical noise.
 
-It is the reference implementation accompanying the manuscript *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 2.0, November 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507), included here as `paper.tex`.
+It is the reference implementation accompanying the manuscript *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 2.0, November 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507), included here as `paper.tex` and `paper.pdf`.
 
 ---
 
@@ -149,7 +149,7 @@ python -m aegisguard_q.cli --family anf --n 8 --degree 3 --terms 9 --format json
 | `bent_inner_product(n)` | Maiorana–McFarland, **requires even `n`** |
 | `semibent_odd(n)` | **requires odd `n`** — extends a bent function on `n−1` variables; no bent function exists in odd dimension |
 
-`SAI` and `|Stab|` are **different quantities**: the first counts tied maxima, the second measures translation symmetry of the whole distribution. A distribution can have tied maxima and still a trivial stabilizer — see the `n = 8` random row below.
+`SAI` and `|Stab|` are **different quantities**: the first counts tied maxima, the second measures translation symmetry of the whole distribution. A distribution can have tied maxima and still a trivial stabilizer.
 
 ---
 
@@ -268,6 +268,7 @@ Exact for `n ≤ 24` (`2²⁴` floats). Beyond that the tool raises rather than 
 ├── verify_theorem2.py       # standalone query-complexity verification
 ├── hb_superposition_sim*.py # independent statevector simulators
 ├── paper.tex                # accompanying manuscript source
+├── paper.pdf                # compiled manuscript
 ├── CITATION.cff             # citation metadata
 ├── requirements.txt         # test/simulator deps (numpy, pytest)
 └── pyproject.toml           # packaging (core deps: none)

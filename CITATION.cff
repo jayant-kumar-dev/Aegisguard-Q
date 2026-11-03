@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software or the accompanying manuscript, please cite them as below."
 title: "AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions"
-version: 2.0.0
-date-released: 2026-08-14
+version: 3.0.0
+date-released: 2026-11-03
 license: MIT
 repository-code: "https://github.com/jayant-kumar-dev/Aegisguard-Q"
 url: "https://github.com/jayant-kumar-dev/Aegisguard-Q"
@@ -21,7 +21,7 @@ keywords:
 identifiers:
   - type: doi
     value: 10.5281/zenodo.21934507
-    description: "Zenodo record for the accompanying manuscript, Version 1.0"
+    description: "Zenodo record for the accompanying manuscript, Version 2.0"
 preferred-citation:
   type: article
   title: "Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols"
@@ -36,4 +36,4 @@ preferred-citation:
       given-names: Jayant
       affiliation: "Sobhasaria Group of Institutions, Sikar, Rajasthan, India"
       orcid: "https://orcid.org/0009-0009-6272-6601"
-  notes: "Version 1.0 preprint. Artifact: AegisGuard-Q v2.0, commit 44d392cf886bfc420e2cba53bf907bdd9b66ceb3."
+  notes: "Version 2.0 preprint. Artifact: AegisGuard-Q v3.0 (32 tests), with keyed DLPN profilers, QGL recovery, HB+/HB# protocol models, and NISQ depolarizing metrics."

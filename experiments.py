@@ -30,6 +30,8 @@ from aegisguard_q.information import (
     empirical_mode_bound,
     max_normalized_walsh,
 )
+from aegisguard_q.keyed_dlpn import profile_keyed_family
+from aegisguard_q.nisq_channel import noisy_channel_metrics
 
 # Documented seeds for the pseudorandom benchmark instances.
 # Seed 6 is chosen so the n=6 instance has a unique spectral mode, which is
@@ -157,8 +159,40 @@ def table2():
     return n, gamma, bound, results
 
 
+def table3_keyed_dlpn():
+    print("\nTable 3: Keyed DLPN family profiles")
+    key_space = list(range(1, 64))
+    families = [
+        ("AC0[MOD2]", lambda s: nf.keyed_ac0_mod2_prf(6, s, 0b000011)),
+        ("Tribes", lambda s: nf.keyed_tribes_dlpn(6, s, width=2)),
+        ("MOD2/MOD3", lambda s: nf.keyed_mod2_mod3_prf(6, s)),
+    ]
+    results = []
+    for name, fn in families:
+        summary = profile_keyed_family(name, 6, fn, key_space)
+        results.append(summary)
+        print(summary)
+    return results
+
+
+def table4_nisq_depolarizing():
+    print("\nTable 4: NISQ depolarizing channel")
+    n = 6
+    g = random_truth_table(n, RANDOM_SEEDS[n])
+    gamma_0 = probability_gap(n, g)
+    results = []
+    for p in (0.0, 0.05, 0.10, 0.25, 0.50):
+        metrics = noisy_channel_metrics(n, g, p, EPSILON)
+        assert abs(metrics["gamma_eff"] - (1.0 - p) * gamma_0) < 1e-9
+        results.append(metrics)
+        print(metrics)
+    return results
+
+
 if __name__ == "__main__":
     rows = table1()
     ok = check_identities(rows)
     table2()
+    table3_keyed_dlpn()
+    table4_nisq_depolarizing()
     sys.exit(0 if ok else 1)

@@ -9,6 +9,7 @@ studied in the paper. Each returns a callable g(a) -> {0,1}.
 from __future__ import annotations
 
 import random
+from itertools import combinations
 from typing import Callable, List, Tuple
 
 
@@ -34,10 +35,8 @@ def random_anf(
     distinct input bits. Controls algebraic degree / nonlinearity.
     """
     rng = random.Random(seed)
-    monomials: List[Tuple[int, ...]] = []
-    for _ in range(num_terms):
-        idx = tuple(rng.sample(range(n), min(degree, n)))
-        monomials.append(idx)
+    all_combos = list(combinations(range(n), min(degree, n)))
+    monomials = rng.sample(all_combos, min(num_terms, len(all_combos)))
 
     def g(a: int) -> int:
         val = 0
@@ -49,6 +48,33 @@ def random_anf(
         return val
 
     return g
+
+
+def keyed_ac0_mod2_prf(n: int, key_s: int, mask_t: int):
+    return lambda a: _popcount_mod2(a & key_s) ^ int(
+        all(((a ^ key_s) >> i) & 1 for i in range(n) if (mask_t >> i) & 1)
+    )
+
+
+def keyed_tribes_dlpn(n: int, key_s: int, width: int = 2):
+    width = max(1, width)
+    clauses = max(1, n // width)
+
+    def g(a: int) -> int:
+        shifted = a ^ key_s
+        return int(any(
+            all((shifted >> (clause * width + i)) & 1
+                for i in range(width)
+                if clause * width + i < n)
+            for clause in range(clauses)
+        ))
+
+    return g
+
+
+def keyed_mod2_mod3_prf(n: int, key_s: int):
+    return lambda a: ((_popcount_mod2(a & key_s) +
+                       (a & key_s).bit_count() % 3) & 1)
 
 
 def bent_inner_product(n: int) -> Callable[[int], int]:

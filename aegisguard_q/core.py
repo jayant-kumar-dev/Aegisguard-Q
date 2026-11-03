@@ -21,7 +21,7 @@ Given a public Boolean noise function g: {0,1}^n -> {0,1}, it computes:
   - single_query_recovery_probability  (= Wg(0)^2 / 4^n, the tau=0 case)
   - leakage_entropy    (Def. 4, computed on the induced BV distribution)
   - tau                (classical noise density wt(g)/2^n)
-  - completeness_bound (|0.5 - tau| upper bound, Theorem 3)
+  - completeness_bound (|0.5 - tau| upper bound, Theorem 9)
   - nonlinearity       (standard cryptographic Nl(g))
   - a LeakageClass verdict (AFFINE / PARTIAL / BENT / GENERIC)
 
@@ -115,8 +115,10 @@ class LeakageReport:
     completeness_bound: float
     nonlinearity: float
     leakage_class: LeakageClass
-    query_complexity: Optional[int]  # Theorem 2, None if SAI>1
+    query_complexity: Optional[int]  # Theorem 8, None if SAI>1
     notes: List[str] = field(default_factory=list)
+    mutual_information: float = 0.0
+    stabilizer_size: int = 1
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -132,6 +134,15 @@ def _is_bent(n: int, abs_spectrum: List[float]) -> bool:
     return all(abs(v - target) < 1e-9 for v in abs_spectrum)
 
 
+def _compute_stabilizer_size(n: int, W: List[float]) -> int:
+    dim = 1 << n
+    return sum(
+        1 for t in range(dim)
+        if all(abs((W[u] ** 2) - (W[u ^ t] ** 2)) < 1e-6
+               for u in range(dim))
+    )
+
+
 def analyze_noise_function(
     n: int,
     g: Callable[[int], int],
@@ -140,7 +151,7 @@ def analyze_noise_function(
     """
     Full spectral leakage analysis of a deterministic noise function g.
 
-    epsilon: target failure probability used for the Theorem-2 query-complexity
+    epsilon: target failure probability used for the Theorem-8 query-complexity
              estimate (only meaningful when SAI(g) == 1).
     """
     _validate_n(n)
@@ -171,7 +182,7 @@ def analyze_noise_function(
         if p > 1e-15:
             entropy -= p * math.log2(p)
 
-    # classical noise density and completeness bound (Theorem 3)
+    # classical noise density and completeness bound (Theorem 9)
     wt = hamming_weight(n, g)
     tau = wt / dim
     completeness_bound = max_abs / (2 ** (n + 1))
@@ -186,10 +197,10 @@ def analyze_noise_function(
         query_complexity = None
         notes.append(
             "Flat Walsh spectrum: no outcome is resolvably heavier than any "
-            "other. Single-query BV leaks zero bits (Corollary 1.2, sufficiency)."
+            "other. Single-query BV leaks zero bits (Corollary 4, sufficiency)."
         )
     elif sai == 1:
-        # gap in raw probabilities for the Theorem-2 bound
+        # gap in raw probabilities for the Theorem-8 bound
         p1 = (w_max ** 2) / (dim ** 2)
         p2 = (w_second ** 2) / (dim ** 2)
         gamma = p1 - p2
@@ -201,21 +212,26 @@ def analyze_noise_function(
             query_complexity = None
         if abs(nl) < 1e-9:
             leakage_class = LeakageClass.AFFINE
-            notes.append("Affine noise: secret recovered in O(1) queries.")
+            notes.append(
+                "Affine noise: secret recovered in one query (Corollary 3)."
+            )
         else:
             leakage_class = LeakageClass.GENERIC
             notes.append(
                 f"Unique spectral mode: secret recovered in ~{query_complexity} "
-                f"queries at eps={epsilon} (Theorem 2)."
+                f"queries at eps={epsilon} (Theorem 8)."
             )
     else:
         leakage_class = LeakageClass.PARTIAL
         query_complexity = None
         notes.append(
-            f"SAI={sai}: repeated queries narrow the secret to a computable "
-            f"{sai}-element coset, not a point."
+            f"SAI={sai} (tied maxima): repeated queries narrow the secret to a "
+            f"computable {sai}-element coset, not a point; "
+            f"|Stab(P_g)|={_compute_stabilizer_size(n, W)} "
+            f"(unlimited-query equivalence class size, Theorem 7)."
         )
 
+    stabilizer_size = _compute_stabilizer_size(n, W)
     return LeakageReport(
         n=n,
         sai=sai,
@@ -228,5 +244,7 @@ def analyze_noise_function(
         nonlinearity=nl,
         leakage_class=leakage_class,
         query_complexity=query_complexity,
+        mutual_information=max(0.0, float(n) - entropy),
+        stabilizer_size=stabilizer_size,
         notes=notes,
     )

@@ -41,13 +41,17 @@ def to_markdown(report: LeakageReport) -> str:
         f"- Single-query exact-recovery probability: "
         f"{report.single_query_recovery_probability:.6f}",
         f"- Leakage entropy: {report.leakage_entropy:.4f} bits",
+        f"- Mutual information I(X;W): {report.mutual_information:.4f} bits "
+        f"(Theorem 2)",
+        f"- Translation stabilizer |Stab(P_g)|: {report.stabilizer_size} "
+        f"(Theorem 7)",
         f"- Nonlinearity Nl(g): {report.nonlinearity:.1f}",
         "",
         "## Classical usability",
         "",
         f"- Noise density (tau): {report.tau:.6f}",
         f"- Completeness bound |0.5 - tau| <= {report.completeness_bound:.6f} "
-        f"(Theorem 3)",
+        f"(Theorem 9)",
         "",
         "## Attack cost",
         "",
@@ -55,7 +59,7 @@ def to_markdown(report: LeakageReport) -> str:
     if report.query_complexity is not None:
         lines.append(
             f"- Estimated queries to recover secret: {report.query_complexity} "
-            f"(Theorem 2)"
+            f"(Theorem 8)"
         )
     else:
         lines.append("- No unique-mode recovery (SAI > 1 or bent); see notes.")

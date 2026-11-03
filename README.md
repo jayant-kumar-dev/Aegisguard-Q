@@ -6,7 +6,7 @@
 
 AegisGuard-Q takes a deterministic Boolean noise function `g: {0,1}ⁿ → {0,1}` and computes, exactly, how much a quantum adversary learns about the secret key of an HB-style authentication protocol that uses `g` as its noise source — how many bits leak from a single superposition query, what remains identifiable after unlimited queries, how many queries a recovery attack needs, and whether the choice of `g` is even usable as classical noise.
 
-It is the reference implementation accompanying the manuscript *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 1.0, August 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507), included here as `paper.tex`.
+It is the reference implementation accompanying the manuscript *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 2.0, November 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507), included here as `paper.tex`.
 
 ---
 
@@ -108,6 +108,15 @@ python -m aegisguard_q.cli --family anf --n 8 --degree 3 --terms 9 --format json
 
 ## API reference
 
+### Version 3.0 modules
+
+| Module | Purpose |
+|---|---|
+| `keyed_dlpn.py` | Exact keyed-family profiling, MI summaries, and spectrum-invariance checks |
+| `qgl_attack.py` | Recursive heavy-Walsh candidate extraction and keyed secret intersection |
+| `protocols.py` | Traced-out HB+ entanglement and HB# column-masking metrics |
+| `nisq_channel.py` | Depolarizing-channel spectral distributions and degraded query bounds |
+
 ### Core (`aegisguard_q.core`)
 
 | Function | Returns |
@@ -117,7 +126,7 @@ python -m aegisguard_q.cli --family anf --n 8 --degree 3 --terms 9 --format json
 | `hamming_weight(n, g)` | number of inputs where `g(a) = 1` |
 | `analyze_noise_function(n, g, epsilon)` | full `LeakageReport`: class, SAI, gap, entropy, `τ`, nonlinearity, query complexity |
 
-### Information-theoretic layer (`aegisguard_q.information`) — v2.0
+### Information-theoretic layer (`aegisguard_q.information`) — v3.0
 
 | Function | Paper reference | Computes |
 |---|---|---|
@@ -150,7 +159,21 @@ python -m aegisguard_q.cli --family anf --n 8 --degree 3 --terms 9 --format json
 python experiments.py
 ```
 
-This regenerates **both tables exactly** and asserts the closed-form predictions of Theorems 2, 8 and 9 on every row, exiting non-zero on any mismatch.
+This regenerates Tables 1--4 exactly and asserts the closed-form predictions of Theorems 2, 8 and 9 on every row, exiting non-zero on any mismatch.
+
+```text
+Table 3: Keyed DLPN family profiles
+AC0[MOD2]       mean tau 0.5119  mean MI 4.0000  min/max MI 4.0000/4.0000  unique mode 0.0000  weak keys 63
+Tribes          mean tau 0.5781  mean MI 1.3790  min/max MI 1.3790/1.3790  unique mode 0.0000  weak keys 0
+MOD2/MOD3       mean tau 0.1719  mean MI 4.1132  min/max MI 1.3031/6.0000  unique mode 0.6667  weak keys 41
+
+Table 4: NISQ depolarizing channel
+p=0.00  MI=1.0041  gamma_eff=0.0390625  N=9378
+p=0.05  MI=0.8929  gamma_eff=0.0371094  N=10391
+p=0.10  MI=0.7946  gamma_eff=0.0351563  N=11578
+p=0.25  MI=0.5493  gamma_eff=0.0292969  N=16672
+p=0.50  MI=0.2533  gamma_eff=0.0195313  N=37511
+```
 
 ### Table 1 — exact spectral metrics
 
@@ -202,7 +225,8 @@ The bound is conservative on this instance, as expected from the union bound.
 ## Tests
 
 ```bash
-python -m pytest tests/ -v      # 25 tests
+python -m pytest tests/ -q      # 32 passed
+python experiments.py           # Tables 1--4
 python verify_theorem2.py       # standalone query-complexity verification
 ```
 
@@ -231,12 +255,16 @@ Exact for `n ≤ 24` (`2²⁴` floats). Beyond that the tool raises rather than 
 .
 ├── aegisguard_q/            # the package (zero-dependency core)
 │   ├── core.py              #   Walsh engine + leakage report
-│   ├── information.py       #   MI, stabilizer, SAI, gap, mode bound   [v2.0]
-│   ├── noise_functions.py   #   affine / linear / random-ANF / bent / semibent
+│   ├── information.py       #   MI, stabilizer, SAI, gap, mode bound   [v3.0]
+│   ├── noise_functions.py   #   benchmark and keyed DLPN constructors
+│   ├── keyed_dlpn.py        #   keyed-family profilers
+│   ├── qgl_attack.py        #   heavy-Walsh/QGL attacks
+│   ├── protocols.py         #   HB+ and HB# physical models
+│   ├── nisq_channel.py      #   depolarizing-channel metrics
 │   ├── report.py            #   JSON + markdown export
 │   └── cli.py               #   command-line interface
-├── tests/                   # 25 tests: regression + cross-validation
-├── experiments.py           # regenerates Tables 1 and 2                [v2.0]
+├── tests/                   # 32 tests: regression + v3 module coverage
+├── experiments.py           # regenerates Tables 1--4                   [v3.0]
 ├── verify_theorem2.py       # standalone query-complexity verification
 ├── hb_superposition_sim*.py # independent statevector simulators
 ├── paper.tex                # accompanying manuscript source
@@ -254,7 +282,7 @@ This is a **research characterization and tool**, built on established technique
 - **With a public `g`, the construction is classically broken outright** by Gaussian elimination — no LPN hardness needed. The object of study is Q2 leakage structure, not a deployable protocol. Classical hardness is open only for **keyed / secret-`g`** variants `e = g_s(a)`, where that linear-algebra recovery no longer applies.
 - **Theorem 8 is a statistical upper bound, not a polynomial-query security statement.** If `γ` is exponentially small the required `N` can be exponential; polynomial-query recovery needs an inverse-polynomial lower bound on `γ`.
 - **The HB+ section is an idealized joint-input extension**, not a protocol-level attack. A real attack would require coherently representing the message flow and the source of the blinding vector `b`.
-- **HB#** (matrix secrets) and **adaptive** adversaries are natural next steps, not yet covered.
+- Version 3.0 provides baseline empirical profilers for keyed $g_s$, HB# column masking, traced-out HB+ entanglement, and depolarizing channels; asymptotic classical hardness proofs for keyed DLPN remain open.
 - Results assume the standard Q2 noise model: noise sampled once per oracle call, independent of the coherent input.
 - **No priority claim is made.** The literature survey in the manuscript is systematic and every reference checked, but no search certifies novelty; independent review by a subject-area specialist remains appropriate.
 
@@ -266,9 +294,9 @@ See `CITATION.cff` — GitHub renders a "Cite this repository" button from it.
 
 Please cite **both** the software and the manuscript:
 
-> Kumar, J. (2026). *AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions*, version 2.0.0. https://github.com/jayant-kumar-dev/Aegisguard-Q
+> Kumar, J. (2026). *AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions*, version 3.0.0. https://github.com/jayant-kumar-dev/Aegisguard-Q
 
-> Kumar, J. (2026). *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*, Version 1.0. Zenodo. https://doi.org/10.5281/zenodo.21934507
+> Kumar, J. (2026). *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*, Version 2.0. Zenodo. https://doi.org/10.5281/zenodo.21934507
 
 And the foundational work this builds on:
 

@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21934507.svg)](https://doi.org/10.5281/zenodo.21934507)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/pytest-32%20passed-brightgreen.svg)](#tests)
+[![Tests](https://img.shields.io/badge/pytest-32%20passed-brightgreen.svg)](#verification--test-suite)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 
 **Quantum-Leakage Static Analysis & NISQ Superposition Profiler for Deterministic-LPN Authentication Protocols.**
@@ -13,7 +13,7 @@
 3. **Finite-Sample & NISQ Complexity:** How many queries $N$ are required to overcome both spectral ambiguity ($\gamma$) and physical quantum link decoherence ($p_{\mathrm{depol}}$).
 4. **Keyed DLPN & QGL Vulnerability:** Weak-key density across keyed $\mathrm{AC}^0[\mathrm{MOD}_2]$, *Tribes* DNF, and mixed-modulus weak PRFs under Quantum Goldreich–Levin (QGL) extraction.
 
-Accompanies the manuscript ***Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*** (Version 2.0, November 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507) (`paper.tex` / `paper.pdf`).
+Accompanies the manuscript ***Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*** (Version 2.0, November 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507) (`paper.tex` / `paper.pdf`). This README follows the manuscript's order: spectral shift, information-theoretic leakage, identifiability, finite-sample recovery, the noise-density trade-off, extensions, experiments, artifact, and limitations.
 
 ---
 
@@ -59,6 +59,26 @@ Case A: Affine Noise g(a) = a·s ⊕ c          Case B: Random Unique-Mode Noise
 
 ---
 
+## Summary of Theoretical Results
+
+All results hold for a known deterministic $g$ in the Q2 phase-oracle model. The numbering is shared with the manuscript.
+
+| Result | Formal Statement | Operational Meaning |
+|---|---|---|
+| **Lemma 1** (Walsh Shift) | $W_h(w) = W_g(w \oplus x) \implies \Pr[W = w \mid X = x] = P_g(w \oplus x)$ | The secret key $x$ shifts the noise spectrum without altering its shape. |
+| **Theorem 2** (Exact Leakage) | $I(X;W) = n - H(P_g)$ bits | Single-query mutual information equals $n$ minus the spectral Shannon entropy. |
+| **Corollary 3** (Affine Endpoint) | $g(a) = a\cdot s \oplus c \implies I(X;W) = n$ | Affine noise collapses $P_g$ to a point mass; 1 query recovers $x$. |
+| **Corollary 4** (Bent Endpoint) | $\Vert{}W_g(u)\Vert{} = 2^{n/2} \implies I(X;W) = 0$ | Bent functions (even $n$) produce uniform $P_g$ and leak 0 bits. |
+| **Definition 5** (Stabilizer) | $\mathrm{Stab}(P_g) = \lbrace t : P_g(u) = P_g(u \oplus t)\ \forall u \rbrace$ | The translation symmetry group of the spectral distribution. |
+| **Definition 6** (SAI) | $\mathrm{SAI}(g) = \#\lbrace u : \Vert{}W_g(u)\Vert{} = \max_v \Vert{}W_g(v)\Vert{} \rbrace$ | The number of tied spectral maxima; distinct from $\vert{}\mathrm{Stab}(P_g)\vert{}$. |
+| **Theorem 7** (Identifiability) | $P_{h_x} \equiv P_{h_{x'}} \iff x \oplus x' \in \mathrm{Stab}(P_g)$ | Unlimited queries uniquely identify $x$ **iff** $\mathrm{Stab}(P_g) = \lbrace 0 \rbrace$. |
+| **Theorem 8** (Sample Bound) | $N \ge \frac{2}{\gamma^2}\left(n \ln 2 + \ln \frac{1}{\varepsilon}\right)$ | Queries needed for empirical mode $w^*$ to match $x \oplus u^*$ with prob $\ge 1-\varepsilon$. |
+| **Theorem 9** (Trade-off) | $\Vert{}1 - 2\tau\Vert{} \le \lambda$, where $\lambda = \max_u \Vert{}W_g(u)\Vert{}/2^n$ | Flattening the spectrum ($\lambda \to 0$) forces noise density $\tau \to 1/2$. |
+
+Normalization note: $\lambda = \max_u \Vert{}W_g(u)\Vert{}/2^n$ is an amplitude, while the largest measurement probability is $p_{\max} = \lambda^2$. The gap $\gamma = p_1 - p_2$ is a difference of probabilities.
+
+---
+
 ## The Fundamental Design Tension (Theorem 9)
 
 Why not always pick a **bent** function $g$ so that $I(X;W) = 0$? **Theorem 9** proves that the classical noise rate $\tau = \mathrm{wt}(g)/2^n$ is locked to the maximum normalized Walsh amplitude $\lambda = \max_u \vert{}W_g(u)\vert{}/2^n$:
@@ -75,9 +95,9 @@ Classical Noise Rate τ = wt(g)/2^n
 
 > **The Catch-22:** Suppressing Q2 superposition leakage requires flattening the Walsh spectrum ($\lambda \to 0$), which mathematically forces the classical noise density $\tau \to 1/2$, destroying the protocol's classical completeness threshold!
 
----
+This is a mathematical design tension, not a proof of security or insecurity for keyed deterministic-LPN protocols.
 
-## Decision Flowchart: Evaluating Any Deterministic Noise Candidate
+### Classification Procedure: Evaluating Any Deterministic Noise Candidate
 
 ```mermaid
 flowchart TD
@@ -89,23 +109,16 @@ flowchart TD
     CheckAffine -- Yes --> Affine["Class: AFFINE\n• Single-query MI = n bits\n• Full Key Recovery in N = 1 Query"]
     CheckAffine -- No --> Generic["Class: GENERIC (Unique Mode)\n• Gap γ = p₁ - p₂ > 0\n• Empirical Mode Recovery in\nN ≥ (2/γ²)(n ln 2 + ln(1/ε)) Queries"]
     CheckSAI -- No --> CheckStab{"Is |Stab(P_g)| == 1?"}
-    CheckStab -- Yes --> PartialID["Class: PARTIAL (Tied Modes, Trivial Stabilizer)\n• Mode tied across SAI(g) peaks\n• Full-distribution matching still identifies x!"]
+    CheckStab -- Yes --> PartialID["Class: PARTIAL (Tied Modes, Trivial Stabilizer)\n• Mode tied across SAI(g) peaks\n• Full-distribution matching still identifies x"]
     CheckStab -- No --> PartialCoset["Class: PARTIAL (Non-Trivial Stabilizer)\n• Unlimited queries identify x only up to\na |Stab(P_g)|-element equivalence coset"]
 ```
 
 ---
 
-## Summary of Theoretical Results
+## Extensions: Joint-Input and Hybrid Noise
 
-| Result | Formal Statement | Operational Meaning |
-|---|---|---|
-| **Lemma 1** (Walsh Shift) | $W_h(w) = W_g(w \oplus x) \implies \Pr[W = w \mid X = x] = P_g(w \oplus x)$ | The secret key $x$ shifts the noise spectrum without altering its shape. |
-| **Theorem 2** (Exact Leakage) | $I(X;W) = n - H(P_g)$ bits | Single-query mutual information equals $n$ minus the spectral Shannon entropy. |
-| **Corollary 3** (Affine Endpoint) | $g(a) = a\cdot s \oplus c \implies I(X;W) = n$ | Affine noise collapses $P_g$ to a point mass; 1 query recovers $x$. |
-| **Corollary 4** (Bent Endpoint) | $\Vert{}W_g(u)\Vert{} = 2^{n/2} \implies I(X;W) = 0$ | Bent functions (even $n$) produce uniform $P_g$ and leak 0 bits. |
-| **Theorem 7** (Identifiability) | $P_{h_x} \equiv P_{h_{x'}} \iff x \oplus x' \in \mathrm{Stab}(P_g)$ | Unlimited queries uniquely identify $x$ **iff** $\mathrm{Stab}(P_g) = \{0\}$. |
-| **Theorem 8** (Sample Bound) | $N \ge \frac{2}{\gamma^2}\left(n \ln 2 + \ln \frac{1}{\varepsilon}\right)$ | Queries needed for empirical mode $w^*$ to match $x \oplus u^*$ with prob $\ge 1-\varepsilon$. |
-| **Theorem 9** (Trade-off) | $\Vert{}1 - 2\tau\Vert{} \le \lambda$, where $\lambda = \max_u \Vert{}W_g(u)\Vert{}/2^n$ | Flattening the spectrum ($\lambda \to 0$) forces noise density $\tau \to 1/2$. |
+- **Idealized joint-input oracle (Section 9):** The HB+ response $z = a\cdot x \oplus b\cdot y \oplus e$ is modeled as a $2n$-bit phase oracle $(-1)^{a\cdot x \oplus b\cdot y \oplus g(a,b)}$. With $\tilde{a} = (a,b)$ and $\tilde{x} = (x,y)$, the Walsh shift identity applies on $2n$ bits. This idealized oracle is not claimed to equal the physical Q2 interface of HB+.
+- **Hybrid noise (Section 10):** For $e = g(a) \oplus r$ with $r$ sampled once per oracle call, the factor $(-1)^r$ is a global phase, so independent per-call Bernoulli noise does not change the Fourier-sampling distribution. This extends the global-phase mechanism of Cid, Elkouss & Goulão and is not a separate attack claim.
 
 ---
 
@@ -168,11 +181,13 @@ print("At 10% Depolarizing Noise:", noisy_channel_metrics(6, g_prf, p_depol=0.10
 
 ## Reproducing Manuscript Tables 1–4
 
-Run the master experiment driver to regenerate all four tables and assert the closed-form predictions of Theorems 2, 8, and 9 on every row:
+Run the master experiment driver to regenerate all four tables and assert the closed-form predictions of Theorems 2, 8, and 9 on every row (the driver exits non-zero on any mismatch):
 
 ```bash
 python experiments.py
 ```
+
+Benchmark families are affine functions, Maiorana–McFarland bent functions (even $n$), seeded random Boolean functions, and odd-dimensional semibent functions obtained by extending a bent function on $n-1$ variables independently of the final bit. Pseudorandom instances use fixed seeds $10$, $2$, $10$ for $n = 4, 6, 8$; the $n = 6$ seed was selected so that the instance has a unique spectral mode, the regime in which Theorem 8 applies.
 
 ### Table 1 — Exact Spectral Metrics Across Benchmark Families
 
@@ -193,7 +208,9 @@ python experiments.py
 
 ### Table 2 — Monte-Carlo Empirical Mode Failure (Seeded Random $n=6$, $\gamma=0.0390625$, $\varepsilon=0.05$)
 
-| Queries $N$ | Empirical Failure Rate (3,000 trials) | Convergence vs. Theorem 8 Union Bound ($N \ge 9,378$) |
+Direct multinomial simulation, 3,000 trials per row, generator seed $20260814$.
+
+| Queries $N$ | Empirical Failure Rate | Convergence vs. Theorem 8 Union Bound ($N \ge 9,378$) |
 |---:|---:|---|
 | 250 | `0.0963` (9.63%) | `██████████░░░░░░░░░░` (Above $\varepsilon = 0.05$) |
 | 500 | `0.0273` (2.73%) | `███░░░░░░░░░░░░░░░░░` (Drops below $\varepsilon = 0.05$) |
@@ -206,13 +223,15 @@ python experiments.py
 
 | Keyed Family | Mean $\tau$ | Mean MI | Min / Max MI | Unique-Mode Fraction | Weak Keys ($\lambda \ge 0.5$) | Key-Spectrum Behavior |
 |---|---:|---:|---:|---:|---:|---|
-| `AC0[MOD2]` (`mask_t=3`) | 0.5119 | 4.0000 | 4.0000 / 4.0000 | 0.0000 | **63 / 63** | Shift-invariant spectrum; heavy Walsh peaks |
-| `Tribes` (`width=2`) | 0.5781 | 1.3790 | 1.3790 / 1.3790 | 0.0000 | **0 / 63** | Shift-invariant spectrum; no $\lambda \ge 0.5$ weak keys |
-| `MOD2/MOD3` | 0.1719 | 4.1132 | 1.3031 / 6.0000 | **0.6667** | **41 / 63** | Strongly $\mathrm{wt}(s)$-dependent; 66.7% unique mode |
+| `keyed_ac0_mod2_prf` (`mask_t=3`) | 0.5119 | 4.0000 | 4.0000 / 4.0000 | 0.0000 | **63 / 63** | Shift-invariant spectrum; heavy Walsh peaks |
+| `keyed_tribes_dlpn` (`width=2`) | 0.5781 | 1.3790 | 1.3790 / 1.3790 | 0.0000 | **0 / 63** | Shift-invariant spectrum; no $\lambda \ge 0.5$ weak keys |
+| `keyed_mod2_mod3_prf` | 0.1719 | 4.1132 | 1.3031 / 6.0000 | **0.6667** (42 / 63) | **41 / 63** | Strongly $\mathrm{wt}(s)$-dependent; 66.67% unique mode |
+
+The mixed-modulus family is $g_s(a) = ((\mathrm{wt}(a \wedge s) \bmod 2) + (\mathrm{wt}(a \wedge s) \bmod 3)) \bmod 2$. The `qgl_attack.py` module applies recursive Adcock–Cleve/Goldreich–Levin prefix pruning to isolate heavy Walsh candidates and intersects candidate shifts across rotated-key sessions.
 
 ### Table 4 — NISQ Depolarizing Channel Degradation (Seeded Random $n=6$, $\varepsilon=0.05$)
 
-Under a global depolarizing channel $\mathcal{E}_{p_{\mathrm{depol}}}(\rho) = (1 - p_{\mathrm{depol}})\rho + p_{\mathrm{depol}} I/2^n$, the effective spectral gap shrinks linearly as $\gamma_{\mathrm{eff}} = (1 - p_{\mathrm{depol}})\gamma$, causing the required sample bound $N \propto 1/\gamma_{\mathrm{eff}}^2$ to grow quadratically:
+Under a global depolarizing channel $\mathcal{E}_{p_{\mathrm{depol}}}(\rho) = (1 - p_{\mathrm{depol}})\rho + p_{\mathrm{depol}} I/2^n$, the measurement distribution becomes $P_{g,p_{\mathrm{depol}}}(u) = (1 - p_{\mathrm{depol}})P_g(u) + p_{\mathrm{depol}}/2^n$. The effective spectral gap shrinks linearly as $\gamma_{\mathrm{eff}} = (1 - p_{\mathrm{depol}})\gamma$, causing the required sample bound $N \propto 1/\gamma_{\mathrm{eff}}^2$ to grow quadratically:
 
 | Depolarizing Rate $p_{\mathrm{depol}}$ | Degraded $I_{\mathrm{depol}}(X;W)$ | Effective Gap $\gamma_{\mathrm{eff}}$ | Theorem 8 Sample Bound $N$ | Relative Query Inflation |
 |---:|---:|---:|---:|---|
@@ -239,13 +258,16 @@ python verify_theorem2.py       # Standalone empirical-mode bound verification
 | `tests/test_hbplus.py` | Idealized $2n$-bit joint-input $\mathrm{HB}^+$ phase-oracle extension |
 | `tests/test_v3_modules.py` | Keyed DLPN shift invariance & weak-key profiling, QGL prefix-tree pruning, traced-out $\mathrm{HB}^+$ & multi-column $\mathrm{HB}^{\sharp}$ masking, and NISQ depolarizing limits ($p_{\mathrm{depol}} \in \lbrace 0, 1 \rbrace$) |
 
+Reported figures were produced with Python 3.12.3, NumPy 2.4.4 and pytest 9.1.1 on Linux, and were independently reproduced without modification on Windows under Python 3.14.5 with NumPy 2.4.4 and pytest 9.1.1. Exact spectrum computation is exponential in $n$; the artifact is intended for verification and small/medium benchmark instances, not scalable cryptanalysis.
+
 ---
 
 ## Scope and Limitations
 
 - **Known-g vs. Keyed-g_s:** A public deterministic $g$ is classically trivial ($a\cdot x = z \oplus g(a)$). The known-$g$ oracle serves as an exact mathematical laboratory for Q2 spectral leakage. Version 3.0 profiles finite **keyed** families ($g_s$), while asymptotic classical hardness proofs for keyed DLPN remain open.
-- **Statistical Upper Bound:** Theorem 8 is a finite-sample sufficiency bound via Hoeffding's inequality; polynomial-query complexity requires $\gamma \ge 1/\mathrm{poly}(n)$.
-- **Protocol Interface:** Section 9 analyzes an idealized $2n$-bit joint phase oracle for $\mathrm{HB}^+$, while `protocols.py` models traced-out Prover blinding entanglement and $\mathrm{HB}^{\sharp}$ column masking. Full coherent rewinding proofs remain future work.
+- **Statistical Upper Bound:** Theorem 8 is a finite-sample sufficiency bound via Hoeffding's inequality, assuming independent non-adaptive measurements; polynomial-query complexity requires $\gamma \ge 1/\mathrm{poly}(n)$.
+- **Protocol Interface:** Section 9 of the manuscript analyzes an idealized $2n$-bit joint phase oracle for $\mathrm{HB}^+$, while `protocols.py` models traced-out Prover blinding entanglement and $\mathrm{HB}^{\sharp}$ column masking. Full coherent rewinding proofs, adaptive attacks, and concrete protocol completeness/error rates remain future work.
+- **Novelty:** No priority claim is made. Independent verification by a subject-area specialist remains appropriate.
 
 ---
 
@@ -253,7 +275,7 @@ python verify_theorem2.py       # Standalone empirical-mode bound verification
 
 Please cite **both** the software artifact and the manuscript:
 
-> **Kumar, J.** (2026). *AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions* (Version 3.0.0) [Computer software]. https://github.com/jayant-kumar-dev/Aegisguard-Q
+> **Kumar, J.** (2026). *AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions* (Version 3.0) [Computer software]. https://github.com/jayant-kumar-dev/Aegisguard-Q
 
 > **Kumar, J.** (2026). *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 2.0). Zenodo. https://doi.org/10.5281/zenodo.21934507
 

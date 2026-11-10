@@ -7,7 +7,7 @@
 
 **Quantum-Leakage Static Analysis & NISQ Superposition Profiler for Deterministic-LPN Authentication Protocols.**
 
-`AegisGuard-Q` takes a deterministic Boolean noise function $g: \{0,1\}^n \to \{0,1\}$ (or a secret-keyed family $g_s$) and computes, **exactly**, what a quantum chosen-message (**Q2**) adversary learns about the secret key $x$ of an HB-style authentication protocol:
+`AegisGuard-Q` takes a deterministic Boolean noise function $g: \lbrace 0,1 \rbrace^n \to \lbrace 0,1 \rbrace$ (or a secret-keyed family $g_s$) and computes, **exactly**, what a quantum chosen-message (**Q2**) adversary learns about the secret key $x$ of an HB-style authentication protocol:
 1. **Single-Query Leakage:** How many bits of $x$ leak in one Bernstein–Vazirani (BV) superposition query ($I(X;W) = n - H(P_g)$).
 2. **Multi-Query Identifiability:** Whether unlimited queries uniquely identify $x$ or trap the adversary in a coset of the translation stabilizer $\mathrm{Stab}(P_g)$.
 3. **Finite-Sample & NISQ Complexity:** How many queries $N$ are required to overcome both spectral ambiguity ($\gamma$) and physical quantum link decoherence ($p_{\mathrm{depol}}$).
@@ -202,7 +202,7 @@ python experiments.py
 | 5,000 | `0.0000` (0.00%) | `░░░░░░░░░░░░░░░░░░░░` (Zero empirical failures) |
 | **9,378** | **`0.0000` (0.00%)** | `░░░░░░░░░░░░░░░░░░░░` (**Provable Theorem 8 Union Bound**) |
 
-### Table 3 — Keyed Deterministic-LPN ($g_s$) Family Profiles ($n=6$, $s \in \{1\ldots 63\}$)
+### Table 3 — Keyed Deterministic-LPN ($g_s$) Family Profiles ($n=6$, $s \in \lbrace 1, \ldots, 63 \rbrace$)
 
 | Keyed Family | Mean $\tau$ | Mean MI | Min / Max MI | Unique-Mode Fraction | Weak Keys ($\lambda \ge 0.5$) | Key-Spectrum Behavior |
 |---|---:|---:|---:|---:|---:|---|
@@ -237,15 +237,15 @@ python verify_theorem2.py       # Standalone empirical-mode bound verification
 | `tests/test_core.py` | Parseval's identity, affine/bent closed-form identities, and floating-point cross-validation against an independent NumPy statevector simulator |
 | `tests/test_information.py` | $I(X;W) = n - H(P_g)$, stabilizer subgroup closure, odd-semibent 1-bit leakage, Theorem 8 ($N=9,378$) and Theorem 9 ($\Vert{}1-2\tau\Vert{} \le \lambda$) |
 | `tests/test_hbplus.py` | Idealized $2n$-bit joint-input $\mathrm{HB}^+$ phase-oracle extension |
-| `tests/test_v3_modules.py` | Keyed DLPN shift invariance & weak-key profiling, QGL prefix-tree pruning, traced-out $\mathrm{HB}^+$ & multi-column $\mathrm{HB}^\#$ masking, and NISQ depolarizing limits ($p_{\mathrm{depol}} \in \{0, 1\}$) |
+| `tests/test_v3_modules.py` | Keyed DLPN shift invariance & weak-key profiling, QGL prefix-tree pruning, traced-out $\mathrm{HB}^+$ & multi-column $\mathrm{HB}^{\sharp}$ masking, and NISQ depolarizing limits ($p_{\mathrm{depol}} \in \lbrace 0, 1 \rbrace$) |
 
 ---
 
 ## Scope and Limitations
 
-- **Known-$g$ vs. Keyed-$g_s$:** A public deterministic $g$ is classically trivial ($a\cdot x = z \oplus g(a)$). The known-$g$ oracle serves as an exact mathematical laboratory for Q2 spectral leakage. Version 3.0 profiles finite **keyed** families ($g_s$), while asymptotic classical hardness proofs for keyed DLPN remain open.
+- **Known-g vs. Keyed-g_s:** A public deterministic $g$ is classically trivial ($a\cdot x = z \oplus g(a)$). The known-$g$ oracle serves as an exact mathematical laboratory for Q2 spectral leakage. Version 3.0 profiles finite **keyed** families ($g_s$), while asymptotic classical hardness proofs for keyed DLPN remain open.
 - **Statistical Upper Bound:** Theorem 8 is a finite-sample sufficiency bound via Hoeffding's inequality; polynomial-query complexity requires $\gamma \ge 1/\mathrm{poly}(n)$.
-- **Protocol Interface:** Section 9 analyzes an idealized $2n$-bit joint phase oracle for $\mathrm{HB}^+$, while `protocols.py` models traced-out Prover blinding entanglement and $\mathrm{HB}^\#$ column masking. Full coherent rewinding proofs remain future work.
+- **Protocol Interface:** Section 9 analyzes an idealized $2n$-bit joint phase oracle for $\mathrm{HB}^+$, while `protocols.py` models traced-out Prover blinding entanglement and $\mathrm{HB}^{\sharp}$ column masking. Full coherent rewinding proofs remain future work.
 
 ---
 

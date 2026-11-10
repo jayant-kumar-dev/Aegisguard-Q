@@ -8,6 +8,10 @@
 \usepackage{hyperref}
 \hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
 \usepackage{braket}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,fit,backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
@@ -27,10 +31,10 @@
 \begin{@twocolumnfalse}
 \maketitle
 \begin{abstract}
-\noindent Recent work showed that LPN-based authentication protocols can be vulnerable to quantum chosen-message (Q2) attacks because independently sampled Bernoulli noise becomes a global phase under a coherent superposition query. This paper studies a narrower and explicitly separated question: how does a known deterministic noise function affect the Q2 measurement distribution of an HB-style phase oracle? We prove an exact Walsh-spectral shift identity, derive the resulting single-query distribution, and formulate two information-theoretic consequences. First, for a uniformly random secret, the mutual information between the secret and the measured outcome is exactly $n - H(P_g)$, where $P_g$ is the squared-normalized Walsh spectrum of the noise function. Second, repeated observations identify the secret only up to the translation stabilizer of $P_g$. Bent functions therefore give zero information in this oracle model, while affine functions reveal the secret completely in one query. We retain a finite-sample empirical-mode bound for the unique-maximum case and derive a noise-density--spectral-flatness trade-off that forces the noise density toward $1/2$ as the spectrum becomes flat. We also analyze an idealized joint-input extension corresponding to the algebraic form of HB+, while explicitly avoiding a claim that this oracle is identical to the physical Q2 interface of the protocol. The accompanying AegisGuard-Q artifact computes the spectrum, mutual information, and translation stabilizer and reproduces the numerical results reported here. The paper does not claim classical hardness or quantum security for keyed deterministic-LPN families; those questions remain open.
+\noindent Recent work showed that LPN-based authentication protocols can be vulnerable to quantum chosen-message (Q2) attacks because independently sampled Bernoulli noise becomes a global phase under a coherent superposition query. This paper studies a narrower and explicitly separated question: how does a deterministic noise function affect the Q2 measurement distribution of an HB-style phase oracle? In the known-noise baseline model, we prove an exact Walsh-spectral shift identity, derive the resulting single-query distribution, and formulate two information-theoretic consequences. First, for a uniformly random secret, the mutual information between the secret and the measured outcome is exactly $n - H(P_g)$, where $P_g$ is the squared-normalized Walsh spectrum of the noise function. Second, repeated observations identify the secret only up to the translation stabilizer of $P_g$. Bent functions therefore give zero information in this oracle model, while affine functions reveal the secret completely in one query. We retain a finite-sample empirical-mode bound for the unique-maximum case and derive a noise-density--spectral-flatness trade-off that forces the noise density toward $1/2$ as the spectrum becomes flat. In Version~2.0 (accompanied by AegisGuard-Q v3.0), we extend this baseline with empirical profilers for keyed deterministic-LPN families ($g_s$), prefix-pruned quantum Goldreich--Levin (QGL) heavy-coefficient recovery, traced-out HB+ blinding entanglement and multi-column HB\# register masking, and NISQ depolarizing-channel degradation showing that physical link noise scales the spectral mode gap as $\gamma_{\mathrm{eff}} = (1 - p_{\mathrm{depol}})\gamma$. While these modules quantify key-weight sensitivity and physical decoherence in finite benchmarks, asymptotic classical hardness and full protocol-level security for keyed deterministic-LPN families remain open.
 
 \vspace{0.5em}
-\noindent\textbf{Keywords:} Quantum cryptanalysis; Learning Parity with Noise; Q2 attacks; Walsh-Hadamard transform; Boolean functions; Bernstein-Vazirani; information leakage; authentication protocols.
+\noindent\textbf{Keywords:} Quantum cryptanalysis; Learning Parity with Noise; Q2 attacks; Walsh-Hadamard transform; Boolean functions; Bernstein-Vazirani; Goldreich-Levin; NISQ depolarizing channel; authentication protocols.
 \end{abstract}
 \vspace{1.5em}
 \end{@twocolumnfalse}
@@ -38,13 +42,52 @@
 
 \section{Introduction and Scope}
 
-LPN-based authentication protocols were introduced as lightweight constructions whose classical security is related to the difficulty of learning a linear function in the presence of noise. Recent work by Cid, Elkouss, and Goul\~ao demonstrated superposition attacks against the HB family in the Q2 model and explained why independently sampled Bernoulli noise can disappear as an unobservable global phase in a coherent query~\cite{cid2026}. Their work motivates examination of deterministic-noise variants. The present paper addresses the spectral structure of that question, but deliberately separates a tractable known-noise oracle from the harder keyed-noise construction.
+LPN-based authentication protocols were introduced as lightweight constructions whose classical security is related to the difficulty of learning a linear function in the presence of noise. Recent work by Cid, Elkouss, and Goul\~ao demonstrated superposition attacks against the HB family in the Q2 model and explained why independently sampled Bernoulli noise can disappear as an unobservable global phase in a coherent query~\cite{cid2026}. Their work motivates examination of deterministic-noise variants. The present paper addresses the spectral structure of that question, separating a tractable known-noise oracle from empirical profiling of keyed-noise constructions.
 
 \paragraph{Research question.} Let $x \in \{0,1\}^n$ be a secret and let $g : \{0,1\}^n \to \{0,1\}$ be a fixed, known Boolean function. For the phase oracle
 \[ h(a) = a \cdot x \oplus g(a), \]
 what information about $x$ is contained in a Bernstein--Vazirani/Fourier-sampling measurement, and what can repeated independent measurements identify?
 
-The distinction between known and keyed noise is essential. If $g$ is public, a classical response $z = a \cdot x \oplus g(a)$ immediately gives $a \cdot x = z \oplus g(a)$, so the construction is not a classical LPN-secure protocol. In a keyed construction $g_s(a)$, the function itself depends on a secret $s$; the Walsh spectrum used in the analysis may then be unknown to the adversary, and the classical hardness problem is separate. We therefore use the known-$g$ model as an exact spectral laboratory, not as a claim of a deployable secure deterministic-LPN protocol.
+The distinction between known and keyed noise is essential. If $g$ is public, a classical response $z = a \cdot x \oplus g(a)$ immediately gives $a \cdot x = z \oplus g(a)$, so the construction is not a classical LPN-secure protocol. In a keyed construction $g_s(a)$, the function itself depends on a secret $s$; the Walsh spectrum used in the analysis may then be unknown to the adversary, and the classical hardness problem is separate. We therefore use the known-$g$ model as an exact spectral laboratory, and supplement it in Version~2.0 with finite-instance profilers for keyed families $g_s$, physical protocol interfaces, and noisy quantum channels.
+
+\begin{figure*}[t]
+\centering
+\resizebox{0.85\textwidth}{!}{%
+\begin{tikzpicture}[
+    gate/.style={draw, thick, fill=white, minimum width=0.9cm, minimum height=0.8cm, font=\small},
+    oracle/.style={draw, thick, fill=blue!6, rounded corners=2pt, minimum width=3.2cm, minimum height=2.0cm, align=center, font=\small},
+    noise/.style={draw, thick, dashed, fill=orange!10, minimum width=1.1cm, minimum height=0.8cm, align=center, font=\scriptsize},
+    meas/.style={draw, thick, fill=gray!10, minimum width=0.8cm, minimum height=0.8cm, font=\small}
+]
+    \node (inA) at (0, 1.0) {$\ket{0}^{\otimes n}$};
+    \node (inZ) at (0, -0.3) {$\ket{1}$};
+
+    \node[gate] (H1) at (1.6, 1.0) {$H^{\otimes n}$};
+    \node[gate] (HZ) at (1.6, -0.3) {$H$};
+
+    \node[oracle] (O) at (5.8, 0.35) {$O_{x,g}$\\[0.2em]\scriptsize $\ket{a}\ket{z} \mapsto$\\[-0.1em]\scriptsize $\ket{a}\ket{z \oplus a\cdot x \oplus g(a)}$};
+
+    \node[noise] (N) at (8.6, 1.0) {NISQ\\$\mathcal{E}_{p_{\mathrm{depol}}}$};
+    \node[gate] (H2) at (10.2, 1.0) {$H^{\otimes n}$};
+    \node[meas] (M) at (11.6, 1.0) {$\mathcal{M}$};
+    \node[right=0.5cm of M] (outW) {\small $W \sim P_g(w \oplus x)$};
+    \node (outZ) at (8.6, -0.3) {$\ket{-}$};
+
+    \draw[thick] (inA) -- (H1);
+    \draw[thick] (H1) -- node[above=2pt, font=\scriptsize]{$\frac{1}{\sqrt{2^n}}\sum_a \ket{a}$} (O.west |- H1);
+    \draw[thick] (O.east |- H1) -- (N);
+    \draw[thick] (N) -- (H2);
+    \draw[thick] (H2) -- (M);
+    \draw[thick, ->] (M) -- (outW);
+
+    \draw[thick] (inZ) -- (HZ);
+    \draw[thick] (HZ) -- node[below=2pt, font=\scriptsize]{$\ket{-}$} (O.west |- HZ);
+    \draw[thick] (O.east |- HZ) -- (outZ);
+\end{tikzpicture}%
+}
+\caption{Quantum circuit for Q2 Fourier sampling of an HB-style deterministic-LPN oracle $h(a) = a\cdot x \oplus g(a)$ with optional NISQ depolarizing link noise $\mathcal{E}_{p_{\mathrm{depol}}}$. Unlike independent Bernoulli noise (which factors out as a global phase $(-1)^e$), deterministic noise $g(a)$ remains entangled with $\ket{a}$ and shapes the output distribution into the shifted Walsh spectrum $P_g(w \oplus x)$.}
+\label{fig:circuit}
+\end{figure*}
 
 \paragraph{Contributions.}
 \begin{enumerate}\itemsep0.1em
@@ -53,11 +96,11 @@ The distinction between known and keyed noise is essential. If $g$ is public, a 
 \item We characterize unlimited-query identifiability through the translation stabilizer of $P_g$.
 \item We state a finite-sample empirical-mode theorem with the required union-bound factor and its spectral-gap condition.
 \item We prove a noise-density--spectral-flatness trade-off.
-\item We reformulate the HB+ discussion as an idealized joint-input extension rather than an unqualified protocol attack.
-\item We provide AegisGuard-Q v3.0, which computes the new metrics and reproduces the numerical tables.
+\item We analyze an idealized joint-input extension alongside baseline models for traced-out HB+ blinding entanglement and HB\# column masking.
+\item We provide AegisGuard-Q v3.0, which adds keyed deterministic-LPN family profiling, QGL heavy-Walsh extraction, and NISQ depolarizing-channel analysis, reproducing Tables~\ref{tab:main}--\ref{tab:nisq}.
 \end{enumerate}
 
-\section{Related Work}
+\section{Related Work}\label{sec:related}
 
 \paragraph{The HB family.} The HB protocol originates with Hopper and
 Blum~\cite{hopper2001}, who proposed lightweight human-executable
@@ -84,7 +127,7 @@ cryptographic applications. Nothing in the present paper bears on classical
 LPN hardness.
 
 \paragraph{Superposition (Q2) adversaries.} The Q2 model grants the adversary
-coherent access to a keyed oracle. Damgård et al.~\cite{damgard2011} formalized
+coherent access to a keyed oracle. Damg\aa rd et al.~\cite{damgard2011} formalized
 superposition attacks on cryptographic protocols; Kuwakado and
 Morii~\cite{kuwakado2010} showed that Simon's algorithm breaks the three-round
 Feistel construction in this model, and Boneh and
@@ -124,23 +167,23 @@ standard~\cite{cover2006,hoeffding1963}.
 algorithm and not a claim about classical LPN hardness. It is an exact
 characterization of the measurement distribution induced by a \emph{known}
 deterministic noise function in the Q2 phase-oracle model, together with the
-information-theoretic and finite-sample consequences of that characterization.
-We did not identify prior work giving this exact Walsh-spectral and
-information-theoretic characterization for the specified known-deterministic-noise
-phase-oracle model. We make no broader claim: the deterministic-noise question
-raised in~\cite{cid2026} is not asserted to be absent from the literature, only
-that we found no prior treatment in these particular terms; see
-Section~\ref{sec:limits}.
+information-theoretic, finite-sample, and noisy-channel consequences of that
+characterization. We did not identify prior work giving this exact
+Walsh-spectral and information-theoretic characterization for the specified
+deterministic-noise phase-oracle model. We make no broader claim: the
+deterministic-noise question raised in~\cite{cid2026} is not asserted to be
+absent from the literature, only that we found no prior treatment in these
+particular terms; see Section~\ref{sec:limits}.
 
 \section{Models and Notation}
 
 All vectors are over $\mathbb{F}_2$. Let $x \in \mathbb{F}_2^n$ be uniformly random and let $g : \mathbb{F}_2^n \to \mathbb{F}_2$ be fixed and known. Define
 \[ h_{x,g}(a) = a \cdot x \oplus g(a). \]
-The corresponding ideal phase oracle is
+The corresponding ideal phase oracle (illustrated in Figure~\ref{fig:circuit}) is
 \[ O_{x,g}\ket{a} = (-1)^{h_{x,g}(a)}\ket{a}. \]
 Applying a uniform superposition and measuring in the Fourier/BV basis produces an $n$-bit outcome $W$.
 
-The known-$g$ model is classically insecure as an authentication construction, because a classical sample gives $a \cdot x = z \oplus g(a)$. Its purpose is exact characterization of Q2 leakage. A keyed model $g_s$ is outside the security claims of this paper: the results below do not establish the hardness or security of keyed deterministic-LPN families.
+The known-$g$ model is classically insecure as an authentication construction, because a classical sample gives $a \cdot x = z \oplus g(a)$. Its purpose is exact characterization of Q2 leakage. A keyed model $g_s$ is outside the formal security claims of this paper: while Section~\ref{sec:keyed} profiles finite keyed families, our theoretical bounds do not establish asymptotic hardness or security for keyed deterministic-LPN families.
 
 \section{Exact Walsh-Spectral Characterization}
 
@@ -245,7 +288,62 @@ and $|W_g(0)| \leq \max_u |W_g(u)|$, we obtain:
 
 Equivalently, for $\lambda = \max_u |W_g(u)|/2^n$,
 \[ \tau \in \left[\frac{1-\lambda}{2}, \frac{1+\lambda}{2}\right]. \]
-For bent $g$, $\lambda = 2^{-n/2}$ and $|\tau - 1/2| = 2^{-n/2-1}$. Thus flattening the spectrum forces deterministic noise density toward one half. This is a mathematical design tension, not a proof of security or insecurity for keyed deterministic-LPN protocols.
+For bent $g$, $\lambda = 2^{-n/2}$ and $|\tau - 1/2| = 2^{-n/2-1}$. Thus flattening the spectrum forces deterministic noise density toward one half, as visualized in Figure~\ref{fig:tradeoff}. This is a mathematical design tension, not a proof of security or insecurity for keyed deterministic-LPN protocols.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=5.2cm,
+    xmin=0, xmax=1.05,
+    ymin=0, ymax=1.0,
+    xlabel={Normalized Walsh Amplitude $\lambda = \max_u |W_g(u)|/2^n$},
+    ylabel={Classical Noise Rate $\tau = \mathrm{wt}(g)/2^n$},
+    label style={font=\footnotesize},
+    tick label style={font=\scriptsize},
+    grid=major,
+    grid style={dashed,gray!30},
+    legend pos=south east,
+    legend style={font=\scriptsize, fill=white, fill opacity=0.85}
+]
+    \addplot[fill=blue!10, draw=none, forget plot] coordinates {(0,0.5) (1,0) (1,1) (0,0.5)};
+    \addplot[thick, blue!70!black] coordinates {(0,0.5) (1,0)};
+    \addlegendentry{Theorem~\ref{thm:tradeoff} boundary $\tau = (1 \pm \lambda)/2$}
+    \addplot[thick, blue!70!black, forget plot] coordinates {(0,0.5) (1,1)};
+
+    \addplot[only marks, mark=diamond, mark size=4pt, thick, green!50!black] coordinates {
+        (0.5000, 0.2500)
+        (0.2500, 0.3750)
+        (0.1250, 0.4375)
+    };
+    \addlegendentry{Odd-semibent ($n=3,5,7$)}
+
+    \addplot[only marks, mark=*, mark size=2.2pt, red!80!black] coordinates {
+        (0.0625, 0.4688)
+        (0.1250, 0.4375)
+        (0.2500, 0.3750)
+    };
+    \addlegendentry{Bent ($n=4,6,8$)}
+
+    \addplot[only marks, mark=triangle*, mark size=2.6pt, orange!85!black] coordinates {
+        (0.3438, 0.5156)
+        (0.1875, 0.4453)
+        (0.5000, 0.3750)
+    };
+    \addlegendentry{Random ($n=6,8,4$)}
+
+    \addplot[only marks, mark=square*, mark size=2.3pt, black] coordinates {
+        (1.0000, 0.5000)
+    };
+    \addlegendentry{Affine ($n=4,6,8$)}
+\end{axis}
+\end{tikzpicture}
+\caption{The Theorem~\ref{thm:tradeoff} feasibility cone $|1 - 2\tau| \le \lambda$. Every Boolean function $g$ must lie inside the shaded region. Suppressing Q2 superposition leakage by driving $\lambda \to 0$ (left apex) forces the classical noise rate $\tau \to 0.5$, whereas low-noise LPN ($\tau \ll 0.5$) requires a large spectral peak $\lambda$. Odd-semibent points ($n=5,7$) coincide with bent points ($n=4,6$) because the corresponding $(\lambda,\tau)$ pairs are equal.}
+\label{fig:tradeoff}
+\end{figure}
+
+\paragraph{Classification procedure.} Given $g$, compute $W_g$ by the fast Walsh--Hadamard transform and then $P_g$. If $P_g$ is uniform, $g$ is bent: $I(X;W) = 0$ and $|\mathrm{Stab}(P_g)| = 2^n$. Otherwise, if $\mathrm{SAI}(g) = 1$ and $\lambda = 1$ (nonlinearity zero), $g$ is affine: $I(X;W) = n$ and one query recovers $x$. If $\mathrm{SAI}(g) = 1$ and $\lambda < 1$, the mode is unique with gap $\gamma > 0$ and Theorem~\ref{thm:mode} applies. If $\mathrm{SAI}(g) > 1$, the class is partial: when $|\mathrm{Stab}(P_g)| = 1$, full-distribution matching still identifies $x$ (Theorem~\ref{thm:stab}), and otherwise $x$ is identifiable only up to a $|\mathrm{Stab}(P_g)|$-element coset.
 
 \section{Idealized Joint-Input Extension}
 
@@ -307,15 +405,13 @@ $N$ & Failure rate \\
 \end{tabular}
 \end{table}
 
-\subsection{Keyed Deterministic-LPN Families and QGL Recovery}
+\subsection{Keyed Deterministic-LPN Families and QGL Recovery}\label{sec:keyed}
 
-Version 3.0 adds baseline exact profilers for keyed deterministic-LPN
-families. The following results use all $s \in \{1,\ldots,63\}$ at $n=6$.
+Version 3.0 adds exact profilers (\texttt{keyed\_dlpn.py}) for keyed deterministic-LPN families $\{g_s\}_{s \in \mathbb{F}_2^n \setminus \{0\}}$, evaluating an $\mathrm{AC}^0[\mathrm{MOD2}]$ parity-conjunction construction inspired by Boyle et al.~\cite{boyle2021}, a keyed \emph{Tribes} DNF construction, and a mixed-modulus weak PRF $g_s(a) = ((\mathrm{wt}(a \wedge s) \bmod 2) + (\mathrm{wt}(a \wedge s) \bmod 3)) \bmod 2$. Table~\ref{tab:keyed} summarizes the profiles across all $63$ non-zero keys at $n=6$. Input-shifted constructions (\texttt{keyed\_ac0\_mod2\_prf} and \texttt{keyed\_tribes\_dlpn}) exhibit key-invariant sorted Walsh spectra ($\min \mathrm{MI} = \max \mathrm{MI}$), whereas \texttt{keyed\_mod2\_mod3\_prf} depends strongly on $\mathrm{wt}(s)$: $42$ of $63$ keys ($66.67\%$) induce a unique spectral mode ($\mathrm{SAI}=1$) and $41$ keys satisfy $\lambda \geq 0.5$.
 
 \begin{table*}[t]
 \centering
-\caption{Table 3: Keyed deterministic-LPN family profiles. Weak keys are
-keys with $\lambda \geq 0.5$.}
+\caption{Keyed deterministic-LPN family profiles at $n=6$ over $s \in \{1,\ldots,63\}$. Weak keys are keys with $\lambda \geq 0.5$.}
 \label{tab:keyed}
 \begin{tabular}{lrrrrrr}
 \toprule
@@ -329,20 +425,15 @@ Unique-mode fraction & Weak keys \\
 \end{tabular}
 \end{table*}
 
-The \texttt{qgl\_attack.py} module implements recursive heavy-Walsh
-candidate extraction and keyed secret intersection across rotated sessions.
-The \texttt{protocols.py} module extends the analysis to traced-out
-HB+ entanglement and multi-column HB\# masking.
+When $g_s$ is keyed, the peak shift $u^* = \arg\max_u P_{g_s}(u)$ is not known a priori. The \texttt{qgl\_attack.py} module implements recursive Adcock--Cleve/Goldreich--Levin~\cite{adcock2002} prefix pruning to isolate heavy Walsh candidates $\{w : |W_h(w)|/2^n \geq \gamma_{\mathrm{th}}\}$ and intersects candidate shifts across rotated-key sessions. Additionally, \texttt{protocols.py} models (i) the reduced density matrix $\rho_{\mathrm{reduced}}$ of 3-move HB+ when the Prover's blinding register $\ket{b}$ is prepared in superposition and traced out, and (ii) the column-by-column $\ket{+}^{\otimes i-1}\ket{-}\ket{+}^{\otimes m-i}$ register-masking query complexity for HB\# (Algorithm~4 of~\cite{cid2026}).
 
 \subsection{Physical Depolarizing Channel Degradation (NISQ Q2 Model)}
 
-To model NISQ noise, \texttt{nisq\_channel.py} mixes the exact distribution
-with the uniform distribution. For the seeded random $n=6$ benchmark,
-$\gamma=0.0390625$ and $\varepsilon=0.05$.
+To model physical link decoherence in near-term quantum networks, \texttt{nisq\_channel.py} applies an $n$-qubit global depolarizing channel $\mathcal{E}_{p_{\mathrm{depol}}}(\rho) = (1 - p_{\mathrm{depol}})\rho + p_{\mathrm{depol}} I / 2^n$ prior to the final Hadamard measurement. This maps the measurement distribution to $P_{g,p_{\mathrm{depol}}}(u) = (1 - p_{\mathrm{depol}})P_g(u) + p_{\mathrm{depol}}/2^n$, scaling the probability gap linearly as $\gamma_{\mathrm{eff}} = (1 - p_{\mathrm{depol}})\gamma$ and inflating the Theorem~\ref{thm:mode} sample bound quadratically. Table~\ref{tab:nisq} and Figure~\ref{fig:nisq_plot} report the resulting degradation for the seeded random $n=6$ benchmark ($\gamma=0.0390625$, $\varepsilon=0.05$).
 
 \begin{table}[t]
 \centering
-\caption{Table 4: Depolarizing-channel degradation.}
+\caption{Depolarizing-channel degradation for the seeded random $n=6$ instance ($\varepsilon = 0.05$).}
 \label{tab:nisq}
 \begin{tabular}{rrrr}
 \toprule
@@ -358,17 +449,66 @@ $\gamma_{\mathrm{eff}}$ & $N$ \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=4.8cm,
+    xmin=0, xmax=0.52,
+    ymin=0, ymax=1.15,
+    xlabel={Depolarizing Channel Rate $p_{\mathrm{depol}}$},
+    ylabel={Mutual Information $I_{\mathrm{depol}}$ (bits)},
+    label style={font=\footnotesize},
+    tick label style={font=\scriptsize},
+    axis y line*=left,
+    grid=major,
+    grid style={dashed,gray!30}
+]
+    \addplot[thick, blue!80!black, mark=*, mark size=2pt] coordinates {
+        (0.00, 1.0041)
+        (0.05, 0.8929)
+        (0.10, 0.7946)
+        (0.25, 0.5493)
+        (0.50, 0.2533)
+    };
+\end{axis}
+\begin{axis}[
+    width=\columnwidth,
+    height=4.8cm,
+    xmin=0, xmax=0.52,
+    ymin=0, ymax=42000,
+    axis y line*=right,
+    axis x line=none,
+    ylabel={Theorem~\ref{thm:mode} Sample Bound $N$},
+    ylabel style={font=\footnotesize, color=red!80!black},
+    tick label style={font=\scriptsize, color=red!80!black},
+    scaled y ticks=false
+]
+    \addplot[thick, dashed, red!80!black, mark=square*, mark size=2pt] coordinates {
+        (0.00, 9378)
+        (0.05, 10391)
+        (0.10, 11578)
+        (0.25, 16672)
+        (0.50, 37511)
+    };
+\end{axis}
+\end{tikzpicture}
+\caption{Effect of physical link depolarization $p_{\mathrm{depol}}$ on single-query mutual information $I_{\mathrm{depol}}(X;W)$ (solid blue, left axis) and the Theorem~\ref{thm:mode} sample complexity bound $N \propto (1 - p_{\mathrm{depol}})^{-2}$ (dashed red, right axis) for the seeded random $n=6$ instance.}
+\label{fig:nisq_plot}
+\end{figure}
+
 \section{Artifact and Reproducibility}
 
-AegisGuard-Q v3.0 implements the fast Walsh-Hadamard transform, spectral probabilities, entropy, exact mutual information, translation stabilizer, spectral ambiguity index, probability gap, keyed-family profilers, QGL candidate extraction, protocol-level baseline models, depolarizing-channel metrics, and the benchmark functions used in the experiments. The repository version accompanying this manuscript contains 32 tests and the experiment driver that reproduces Tables~\ref{tab:main}--\ref{tab:nisq}. Exact spectrum computation remains exponential in $n$; the artifact is intended for verification and small/medium benchmark instances, not scalable cryptanalysis.
+AegisGuard-Q v3.0 implements the fast Walsh-Hadamard transform, spectral probabilities, entropy, exact mutual information, translation stabilizer, spectral ambiguity index, probability gap, keyed-family profilers, QGL candidate extraction, protocol-level baseline models, depolarizing-channel metrics, and the benchmark functions used in the experiments. The repository version accompanying this manuscript contains 32 tests and the experiment driver that reproduces Tables~\ref{tab:main}--\ref{tab:nisq}; a standalone script, \texttt{verify\_theorem2.py}, separately verifies the empirical-mode bound. Exact spectrum computation remains exponential in $n$; the artifact is intended for verification and small/medium benchmark instances, not scalable cryptanalysis.
 
 \section{Limitations and Open Problems}\label{sec:limits}
 
-The known-$g$ model is classically insecure and is used only for exact spectral analysis. Version 3.0 provides baseline empirical profilers for keyed $g_s$, HB\# column masking, traced-out HB+ entanglement, and depolarizing channels, but asymptotic classical hardness proofs for keyed DLPN remain open. The empirical-mode theorem assumes independent non-adaptive measurements and does not provide a polynomial-query guarantee without a gap condition. The physical protocol models do not establish full protocol-level Q2 security or attacks. Adaptive attacks and concrete protocol completeness/error rates remain outside the present scope. Section~2 reflects a systematic survey of the HB/LPN, superposition-attack, Fourier-sampling and Boolean-function literature; every reference has been checked against its published record. No automated or manual search can certify novelty, however, and we make no priority claim: independent verification by a subject-area specialist remains appropriate.
+The known-$g$ model is classically insecure and is used only for exact spectral analysis. Version 3.0 provides baseline empirical profilers for keyed $g_s$, HB\# column masking, traced-out HB+ entanglement, and depolarizing channels, but asymptotic classical hardness proofs for keyed DLPN remain open. The empirical-mode theorem assumes independent non-adaptive measurements and does not provide a polynomial-query guarantee without a gap condition. The physical protocol models do not establish full protocol-level Q2 security or attacks. Adaptive attacks and concrete protocol completeness/error rates remain outside the present scope. Section~\ref{sec:related} reflects a systematic survey of the HB/LPN, superposition-attack, Fourier-sampling and Boolean-function literature; every reference has been checked against its published record. No automated or manual search can certify novelty, however, and we make no priority claim: independent verification by a subject-area specialist remains appropriate.
 
 \section{Conclusion}
 
-For a known Boolean noise function $g$, the Q2 Fourier-sampling distribution is exactly a translation of the squared Walsh spectrum of $g$. Single-query information leakage is $n - H(P_g)$, while unlimited-query identifiability is governed exactly by the translation stabilizer of $P_g$. Affine functions therefore reveal the secret completely, bent functions reveal zero information through this channel, and intermediate functions occupy a continuum described by their spectral distribution and symmetries. A finite-sample mode bound quantifies recovery when the maximum is unique, while the noise-density theorem shows that flattening the spectrum forces deterministic noise density toward one half. These statements characterize a precise oracle-level phenomenon; they do not establish classical hardness or full protocol security for keyed deterministic-LPN variants.
+For a known Boolean noise function $g$, the Q2 Fourier-sampling distribution is exactly a translation of the squared Walsh spectrum of $g$. Single-query information leakage is $n - H(P_g)$, while unlimited-query identifiability is governed exactly by the translation stabilizer of $P_g$. Affine functions therefore reveal the secret completely, bent functions reveal zero information through this channel, and intermediate functions occupy a continuum described by their spectral distribution and symmetries. A finite-sample mode bound quantifies recovery when the maximum is unique, while the noise-density theorem shows that flattening the spectrum forces deterministic noise density toward one half. Extending this framework in AegisGuard-Q v3.0 demonstrates that keyed deterministic-LPN candidates can exhibit key-weight-dependent weak keys under QGL extraction and that physical depolarizing noise scales the spectral mode gap by $1 - p_{\mathrm{depol}}$. These statements characterize precise oracle-level phenomena; they do not establish classical hardness or full protocol security for keyed deterministic-LPN variants.
 
 \section*{Artifact Availability and Reproducibility}
 

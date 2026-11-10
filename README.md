@@ -70,7 +70,7 @@ All results hold for a known deterministic $g$ in the Q2 phase-oracle model. The
 | **Corollary 3** (Affine Endpoint) | $g(a) = a\cdot s \oplus c \implies I(X;W) = n$ | Affine noise collapses $P_g$ to a point mass; 1 query recovers $x$. |
 | **Corollary 4** (Bent Endpoint) | $\Vert{}W_g(u)\Vert{} = 2^{n/2} \implies I(X;W) = 0$ | Bent functions (even $n$) produce uniform $P_g$ and leak 0 bits. |
 | **Definition 5** (Stabilizer) | $\mathrm{Stab}(P_g) = \lbrace t : P_g(u) = P_g(u \oplus t)\ \forall u \rbrace$ | The translation symmetry group of the spectral distribution. |
-| **Definition 6** (SAI) | $\mathrm{SAI}(g) = \#\lbrace u : \Vert{}W_g(u)\Vert{} = \max_v \Vert{}W_g(v)\Vert{} \rbrace$ | The number of tied spectral maxima; distinct from $\vert{}\mathrm{Stab}(P_g)\vert{}$. |
+| **Definition 6** (SAI) | $\mathrm{SAI}(g) = \vert{}\lbrace u : \Vert{}W_g(u)\Vert{} = \max_v \Vert{}W_g(v)\Vert{} \rbrace\vert{}$ | The number of tied spectral maxima; distinct from $\vert{}\mathrm{Stab}(P_g)\vert{}$. |
 | **Theorem 7** (Identifiability) | $P_{h_x} \equiv P_{h_{x'}} \iff x \oplus x' \in \mathrm{Stab}(P_g)$ | Unlimited queries uniquely identify $x$ **iff** $\mathrm{Stab}(P_g) = \lbrace 0 \rbrace$. |
 | **Theorem 8** (Sample Bound) | $N \ge \frac{2}{\gamma^2}\left(n \ln 2 + \ln \frac{1}{\varepsilon}\right)$ | Queries needed for empirical mode $w^*$ to match $x \oplus u^*$ with prob $\ge 1-\varepsilon$. |
 | **Theorem 9** (Trade-off) | $\Vert{}1 - 2\tau\Vert{} \le \lambda$, where $\lambda = \max_u \Vert{}W_g(u)\Vert{}/2^n$ | Flattening the spectrum ($\lambda \to 0$) forces noise density $\tau \to 1/2$. |

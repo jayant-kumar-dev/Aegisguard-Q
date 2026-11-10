@@ -1,324 +1,80 @@
-# AegisGuard-Q
+# 🛡️ AegisGuard-Q (v3.0)
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21934507.svg)](https://doi.org/10.5281/zenodo.21934507)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/pytest-32%20passed-brightgreen.svg)](#tests)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 
-**Quantum-leakage static analysis for deterministic-noise HB-style authentication protocols.**
+**Quantum-Leakage Static Analysis & NISQ Superposition Profiler for Deterministic-LPN Authentication Protocols.**
 
-AegisGuard-Q takes a deterministic Boolean noise function `g: {0,1}ⁿ → {0,1}` and computes, exactly, how much a quantum adversary learns about the secret key of an HB-style authentication protocol that uses `g` as its noise source — how many bits leak from a single superposition query, what remains identifiable after unlimited queries, how many queries a recovery attack needs, and whether the choice of `g` is even usable as classical noise.
+`AegisGuard-Q` takes a deterministic Boolean noise function $g: \{0,1\}^n \to \{0,1\}$ (or a secret-keyed family $g_s$) and computes, **exactly**, what a quantum chosen-message (**Q2**) adversary learns about the secret key $x$ of an HB-style authentication protocol:
+1. **Single-Query Leakage:** How many bits of $x$ leak in one Bernstein–Vazirani (BV) superposition query ($I(X;W) = n - H(P_g)$).
+2. **Multi-Query Identifiability:** Whether unlimited queries uniquely identify $x$ or trap the adversary in a coset of the translation stabilizer $\mathrm{Stab}(P_g)$.
+3. **Finite-Sample & NISQ Complexity:** How many queries $N$ are required to overcome both spectral ambiguity ($\gamma$) and physical quantum link decoherence ($p_{\mathrm{depol}}$).
+4. **Keyed DLPN & QGL Vulnerability:** Weak-key density across keyed $\mathrm{AC}^0[\mathrm{MOD}_2]$, *Tribes* DNF, and mixed-modulus weak PRFs under Quantum Goldreich–Levin (QGL) extraction.
 
-Version 3.0 extends the core known-`g` spectral engine with **keyed deterministic-LPN (`g_s`) family profilers**, **Quantum Goldreich-Levin (QGL) heavy-Walsh candidate extraction**, **physical HB+ / HB# protocol-level models**, and **NISQ depolarizing channel degradation analysis**.
-
-It is the reference implementation accompanying the manuscript *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols* (Version 2.0, November 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507), included here as `paper.tex` and `paper.pdf`.
-
----
-
-## Why this exists
-
-Cid, Elkouss & Goulão (*IACR Communications in Cryptology* 3(1), 2026) showed that the **HB**, **HB+** and **HB#** lightweight authentication protocols — whose classical security rests on Learning Parity with Noise (LPN) — fall to a *single* quantum query when the prover can be queried in superposition (the "Q2" model). The mechanism is elegant: the protocols' independently sampled Bernoulli noise becomes an unobservable **global phase** under a coherent query, so Bernstein-Vazirani recovers the key as though there were no noise at all.
-
-That paper left an explicit **open question**: what if the noise is *deterministic* — computed as `e = g(a)` for a fixed Boolean function `g`, or `e = g_s(a)` for a keyed family — so that it is no longer a global phase?
-
-**AegisGuard-Q characterizes the quantum side of that question.** The central result is that the Q2 measurement distribution is exactly a *translation* of the squared Walsh spectrum of `g`, shifted by the secret. Everything else — leakage in bits, identifiability, query complexity, keyed weak-key density, and NISQ decoherence scaling — follows from the spectrum.
-
-> **Scope warning, stated up front.** With a *public* `g`, the construction is classically broken outright: an adversary computes `z ⊕ g(a) = a·x` and recovers the secret by Gaussian elimination, no LPN hardness required. This tool is designer-side analysis of Q2 leakage structure and empirical profiling for **keyed** variants `g_s`, **not** a classical hardness proof for a deployable protocol. See [Scope and limitations](#scope-and-limitations).
+Accompanies the manuscript ***Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*** (Version 2.0, November 2026), [DOI: 10.5281/zenodo.21934507](https://doi.org/10.5281/zenodo.21934507) (`paper.tex` / `paper.pdf`).
 
 ---
 
-## The theory in one screen
+## 🔬 Visual Intuition: Why Bernoulli Noise Fails & How Deterministic Noise Behaves
 
-For secret `x` and deterministic noise function `g`, the HB-style phase oracle is
+In standard LPN-based authentication (**HB**, **HB+**, **HB#**), Cid, Elkouss & Goulão (*IACR CiC* 2026) showed that independently sampled Bernoulli noise $e \leftarrow \mathrm{Ber}(\tau)$ factors out as an **unobservable global phase** $(-1)^e$ during a coherent superposition query. When noise is instead a deterministic function $g(a)$ of the query register $\vert{}a\rangle$, it stays entangled with the computational basis and **convolves** the measurement outcome with the squared Walsh spectrum $P_g(u) = W_g(u)^2 / 4^n$:
 
-```
-O|a⟩ = (−1)^(a·x ⊕ g(a)) |a⟩
-```
+```mermaid
+flowchart LR
+    subgraph Standard_LPN["1. Standard Bernoulli LPN (Cid, Elkouss & Goulão 2026)"]
+        direction LR
+        Q1["|0⟩⊗n ──[ H⊗n ]──"] --> O1["Oracle: (-1)^(a·x ⊕ e)"]
+        O1 --> H1["──[ H⊗n ]── Measure"]
+        H1 --> R1["Global Phase (-1)^e |x⟩\n💥 100% Key Recovery in 1 Query"]
+    end
 
-Write the unnormalized Walsh transform and the induced measurement distribution as
-
-```
-W_g(u) = Σ_a (−1)^(g(a) ⊕ a·u)          P_g(u) = W_g(u)² / 4ⁿ
-```
-
-| Result | Statement |
-|---|---|
-| **Lemma 1** (Walsh shift) | `W_h(w) = W_g(w ⊕ x)`, hence `Pr[W = w \| X = x] = P_g(w ⊕ x)` |
-| **Theorem 2** (leakage) | `I(X;W) = n − H(P_g)` — exact mutual information, in bits |
-| **Corollary 3** (affine) | affine `g` ⇒ point mass ⇒ `I = n`, secret recovered in one query |
-| **Corollary 4** (bent) | bent `g` (needs even `n`) ⇒ uniform `P_g` ⇒ `I = 0` |
-| **Theorem 7** (identifiability) | `x` is identifiable from unlimited queries **iff** `Stab(P_g) = {0}` |
-| **Theorem 8** (sample complexity) | unique mode ⇒ `N ≥ (2/γ²)(n ln 2 + ln(1/ε))` suffices |
-| **Theorem 9** (trade-off) | `\|1 − 2τ\| ≤ λ`, where `λ = max\|W_g\|/2ⁿ` and `τ = wt(g)/2ⁿ` |
-
-The last one is the design tension: flattening the spectrum is exactly what defeats the Q2 attack, and it is exactly what forces the classical noise rate `τ` toward 1/2. **You cannot have both.**
-
-Two normalizations that are easy to confuse: `λ = max|W_g|/2ⁿ` is an *amplitude*; `p_max = max P_g = λ²` is a *probability*. The mode gap `γ` is a difference of probabilities.
-
----
-
-## Install
-
-The **core library has zero dependencies** — pure Python standard library (3.9+):
-
-```bash
-python -m aegisguard_q.cli --family bent --n 8 --format markdown
+    subgraph Det_LPN["2. Deterministic-LPN Phase Oracle (This Work)"]
+        direction LR
+        Q2["|0⟩⊗n ──[ H⊗n ]──"] --> O2["Oracle: (-1)^(a·x ⊕ g(a))"]
+        O2 --> N2["NISQ Link: p_depol"]
+        N2 --> H2["──[ H⊗n ]── Measure W"]
+        H2 --> R2["Shifted Spectrum: Pr[W=w] = P_g(w ⊕ x)\n📊 Leakage = n - H(P_g) bits"]
+    end
 ```
 
-Install as a package (adds the `aegisguard-q` command):
+### The Spectral Shift Phenomenon (Lemma 1 & Theorem 2)
 
-```bash
-pip install .
-```
+Measuring the phase oracle $O_{x,g}\vert{}a\rangle = (-1)^{a\cdot x \oplus g(a)}\vert{}a\rangle$ in the Hadamard basis produces outcome $w$ with probability $P_g(w \oplus x)$. The secret $x$ simply **translates** the noise spectrum $P_g$ across $\mathbb{F}_2^n$ without changing its shape:
 
-For the test suite, the statevector cross-validation, and the experiment driver:
+```text
+Case A: Affine Noise g(a) = a·s ⊕ c          Case B: Random Unique-Mode Noise (n=6)          Case C: Bent Noise g(a) (Even n)
+(Point-Mass Spectrum: λ = 1.0, γ = 1.0)      (Peaked Spectrum: λ = 0.3438, γ = 0.0391)       (Flat Spectrum: λ = 2^(-n/2), γ = 0)
 
-```bash
-pip install -e ".[test]"      # or: pip install -r requirements.txt
+  P_g(w ⊕ x)                                   P_g(w ⊕ x)                                      P_g(w ⊕ x)
+  1.00 │       █                               0.12 │       █  <-- Mode w* = x ⊕ u*            0.06 │ ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  0.75 │       █                               0.09 │       █      (Gap γ = p1 - p2)           0.04 │ ████████████████████
+  0.50 │       █                               0.06 │   █   █   █                              0.02 │ ████████████████████
+  0.25 │       █                               0.03 │ ▄ █ ▄ █ █ █ ▄ ▄                          0.00 └────────────────────► w
+  0.00 └───────┴───────► w                     0.00 └─┴─┴─┴─┴─┴─┴─┴─┴─► w                           Uniform over all 2^n states
+        w* = x ⊕ s                                   Recovered in N ~ O(n/γ²) queries               I(X;W) = 0 bits, |Stab| = 2^n
+  👉 Leakage: n bits (1 query)                 👉 Leakage: 1.0041 bits (N ≤ 9378)              👉 Leakage: 0 bits (Unidentifiable)
 ```
 
 ---
 
-## Quick start
+## ⚖️ The Fundamental Design Tension (Theorem 9)
 
-**As a library:**
+Why not always pick a **bent** function $g$ so that $I(X;W) = 0$? **Theorem 9** proves that the classical noise rate $\tau = \mathrm{wt}(g)/2^n$ is locked to the maximum normalized Walsh amplitude $\lambda = \max_u \vert{}W_g(u)\vert{}/2^n$:
 
-```python
-from aegisguard_q import (
-    analyze_noise_function, mutual_information,
-    translation_stabilizer, noise_functions as nf, to_markdown,
-)
+$$\vert{}1 - 2\tau\vert{} \le \lambda \quad \Longleftrightarrow \quad \tau \in \left[\frac{1-\lambda}{2},\ \frac{1+\lambda}{2}\right]$$
 
-g = nf.bent_inner_product(8)
-
-print(to_markdown(analyze_noise_function(8, g)))
-print("leakage:", mutual_information(8, g), "bits")
-print("stabilizer size:", len(translation_stabilizer(8, g)))
+```text
+Classical Noise Rate τ = wt(g)/2^n
+0.0 ───────────────────────────[═══════════════ Allowed Band ═══════════════]─────────────────────────── 0.5 (Random Guessing)
+                               ▲                                            ▲
+                     Low-Noise LPN (τ ≪ 0.5)                      Bent / Flat Spectrum (λ = 2^(-n/2))
+                  Requires large λ ⇒ High Q2 Leakage!            Forces τ → 0.5 ⇒ Breaks Completeness!
 ```
 
-**As a command-line tool:**
-
-```bash
-# Bent: zero single-query leakage — but see the trade-off
-python -m aegisguard_q.cli --family bent --n 8
-
-# Affine: catastrophic, key falls out in one query
-python -m aegisguard_q.cli --family affine --n 8
-
-# Random nonlinear: recovered, but needs many queries
-python -m aegisguard_q.cli --family anf --n 8 --degree 3 --terms 9 --format json
-```
+> **The Catch-22:** Suppressing Q2 superposition leakage requires flattening the Walsh spectrum ($\lambda \to 0$), which mathematically forces the classical noise density $\tau \to 1/2$, destroying the protocol's classical completeness threshold!
 
 ---
 
-## API reference
-
-### Version 3.0 extension modules
-
-| Module | Purpose |
-|---|---|
-| `aegisguard_q.keyed_dlpn` | Exact keyed-family (`g_s`) profiling, MI summaries, weak-key counts, and shift-invariance checks |
-| `aegisguard_q.qgl_attack` | Recursive Goldreich-Levin / Adcock-Cleve heavy-Walsh prefix pruning and multi-session keyed intersection |
-| `aegisguard_q.protocols` | Physical 3-move HB+ traced-out blinding entanglement (`ρ_reduced`) and HB# `\|+⟩/\|−⟩` column-masking metrics |
-| `aegisguard_q.nisq_channel` | Depolarizing-channel (`p_depol`) spectral degradation, effective gap `γ_eff = (1 − p_depol)γ`, and inflated `N` bounds |
-
-### Core (`aegisguard_q.core`)
-
-| Function | Returns |
-|---|---|
-| `walsh_spectrum(n, g)` | raw Walsh coefficients `W_g(u)`, via in-house FWHT, `O(n·2ⁿ)` |
-| `fast_walsh_hadamard(vec)` | the transform itself |
-| `hamming_weight(n, g)` | number of inputs where `g(a) = 1` |
-| `analyze_noise_function(n, g, epsilon)` | full `LeakageReport`: class, SAI, `mutual_information`, `stabilizer_size`, gap, entropy, `τ`, nonlinearity, query complexity |
-
-### Information-theoretic layer (`aegisguard_q.information`)
-
-| Function | Paper reference | Computes |
-|---|---|---|
-| `spectral_distribution(n, g)` | §4 | `P_g(u) = W_g(u)²/4ⁿ` |
-| `shannon_entropy(p)` | §5 | `H(P) = −Σ P log₂ P` |
-| `mutual_information(n, g)` | Theorem 2 | `I(X;W) = n − H(P_g)`, in bits |
-| `translation_stabilizer(n, g)` | Definition 5 / Theorem 7 | `Stab(P_g)` as a sorted list; `{0}` ⟺ identifiable |
-| `spectral_ambiguity_index(n, g)` | Definition 6 | number of tied spectral maxima |
-| `probability_gap(n, g)` | Theorem 8 | `γ = p₁ − p₂`, or `0` if no unique mode |
-| `empirical_mode_bound(n, γ, ε)` | Theorem 8 | `N ≥ (2/γ²)(n ln 2 + ln(1/ε))`, `None` if `γ = 0` |
-| `max_normalized_walsh(n, g)` | Theorem 9 | `λ = max\|W_g\|/2ⁿ` |
-
-### Benchmark & keyed constructors (`aegisguard_q.noise_functions`)
-
-| Function | Notes |
-|---|---|
-| `affine(n, s, c)` | `g(a) = a·s ⊕ c` |
-| `linear(n, s)` | `g(a) = a·s` |
-| `random_anf(n, degree, num_terms, seed)` | XOR of distinct random monomials; controls algebraic degree |
-| `bent_inner_product(n)` | Maiorana–McFarland, **requires even `n`** |
-| `semibent_odd(n)` | **requires odd `n`** — extends a bent function on `n−1` variables; no bent function exists in odd dimension |
-| `keyed_ac0_mod2_prf(n, key_s, mask_t)` | Keyed parity + conjunction weak PRF in `AC⁰[MOD₂]` (Boyle et al. `[BCG+21]`) |
-| `keyed_tribes_dlpn(n, key_s, width)` | Keyed *Tribes* DNF deterministic LPN noise (Cid et al. ACNS 2026 style) |
-| `keyed_mod2_mod3_prf(n, key_s)` | Mixed-modulus weak PRF `((hw(a & s) mod 2) + (hw(a & s) mod 3)) mod 2` |
-
-`SAI` and `|Stab|` are **different quantities**: the first counts tied maxima, the second measures translation symmetry of the whole distribution. A distribution can have tied maxima and still a trivial stabilizer.
-
----
-
-## Reproducing the manuscript tables
-
-```bash
-python experiments.py
-```
-
-This regenerates Tables 1–4 exactly and asserts the closed-form predictions of Theorems 2, 8 and 9 on every row, exiting non-zero on any mismatch.
-
-### Table 1 — exact spectral metrics
-
-| Family | n | τ | λ | H | MI | \|S\| | SAI | γ |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Affine | 4 | 0.5000 | 1.0000 | 0.0000 | 4.0000 | 1 | 1 | 1.0000 |
-| Bent | 4 | 0.3750 | 0.2500 | 4.0000 | 0.0000 | 16 | 16 | 0 |
-| Random | 4 | 0.3750 | 0.5000 | 3.0000 | 1.0000 | 2 | 2 | 0 |
-| Affine | 6 | 0.5000 | 1.0000 | 0.0000 | 6.0000 | 1 | 1 | 1.0000 |
-| Bent | 6 | 0.4375 | 0.1250 | 6.0000 | 0.0000 | 64 | 64 | 0 |
-| Random | 6 | 0.5156 | 0.3438 | 4.9959 | 1.0041 | 1 | 1 | 0.0391 |
-| Affine | 8 | 0.5000 | 1.0000 | 0.0000 | 8.0000 | 1 | 1 | 1.0000 |
-| Bent | 8 | 0.4688 | 0.0625 | 8.0000 | 0.0000 | 256 | 256 | 0 |
-| Random | 8 | 0.4453 | 0.1875 | 6.8601 | 1.1399 | 1 | 1 | 0.0056 |
-| Odd-semibent | 3 | 0.2500 | 0.5000 | 2.0000 | 1.0000 | 4 | 4 | 0 |
-| Odd-semibent | 5 | 0.3750 | 0.2500 | 4.0000 | 1.0000 | 16 | 16 | 0 |
-| Odd-semibent | 7 | 0.4375 | 0.1250 | 6.0000 | 1.0000 | 64 | 64 | 0 |
-
-`λ = max|W_g|/2ⁿ` · `H` = spectral measurement entropy · `MI = I(X;W)` · `|S| = |Stab(P_g)|` · `γ` = mode gap.
-
-Reading it: **affine** leaks all `n` bits and is fully identifiable. **Bent** leaks nothing and the stabilizer is everything — no number of repetitions helps. **Odd-semibent** sits exactly in between at one bit, leaving a `2^(n−1)`-element equivalence class, which is the sharpest illustration that "no leakage" and "identifiable" are separate axes.
-
-### Table 2 — empirical mode failure (seeded random `n = 6`, γ = 0.0390625, ε = 0.05, Theorem 8 bound `N ≥ 9378`)
-
-| N | Failure rate |
-|---:|---:|
-| 250 | 0.0963 |
-| 500 | 0.0273 |
-| 1000 | 0.0003 |
-| 2000 | 0.0003 |
-| 5000 | 0.0000 |
-| 9378 | 0.0000 |
-
-The bound is conservative on this instance, as expected from the union bound.
-
-### Table 3 — keyed deterministic-LPN (`g_s`) family profiles (`n = 6`, 63 non-zero keys `s ∈ {1..63}`)
-
-| Keyed Family | Mean τ | Mean MI | Min / Max MI | Unique-Mode Fraction | Weak Keys (`λ ≥ 0.5`) |
-|---|---:|---:|---:|---:|---:|
-| `AC0[MOD2]` (`mask_t = 3`) | 0.5119 | 4.0000 | 4.0000 / 4.0000 | 0.0000 | 63 / 63 |
-| `Tribes` (`width = 2`) | 0.5781 | 1.3790 | 1.3790 / 1.3790 | 0.0000 | 0 / 63 |
-| `MOD2/MOD3` | 0.1719 | 4.1132 | 1.3031 / 6.0000 | 0.6667 | 41 / 63 |
-
-Reading it: input-shifted constructions (`AC0[MOD2]` and `Tribes`) have key-invariant Walsh spectra (`min MI = max MI`), whereas the mixed-modulus `MOD2/MOD3` weak PRF exhibits strong key-weight sensitivity — 42 of 63 keys (`66.67%`) induce a unique spectral mode (`SAI = 1`) and 41 keys have `λ ≥ 0.5`, creating weak keys vulnerable to QGL heavy-coefficient extraction.
-
-### Table 4 — NISQ depolarizing channel degradation (seeded random `n = 6`, `ε = 0.05`)
-
-| Depolarizing Rate `p_depol` | Degraded `MI_noisy` (bits) | Effective Gap `γ_eff` | Theorem 8 Sample Bound `N` |
-|---:|---:|---:|---:|
-| 0.00 | 1.0041 | 0.0390625 | 9,378 |
-| 0.05 | 0.8929 | 0.0371094 | 10,391 |
-| 0.10 | 0.7946 | 0.0351563 | 11,578 |
-| 0.25 | 0.5493 | 0.0292969 | 16,672 |
-| 0.50 | 0.2533 | 0.0195313 | 37,511 |
-
-Reading it: global depolarizing noise scales the probability gap linearly as `γ_eff = (1 − p_depol)γ`, which inflates the required sample complexity `N` quadratically (`∝ 1 / (1 − p_depol)²`).
-
-### Frozen experimental parameters
-
-| Parameter | Value |
-|---|---|
-| Benchmark seeds (`n = 4, 6, 8`) | `10`, `2`, `10` — the `n=6` seed chosen so the instance has a unique spectral mode |
-| Monte-Carlo generator seed | `20260814` |
-| Trials per `N` | `3000` |
-| `ε` | `0.05` |
-| Reference environment | Python 3.12.3 / NumPy 2.4.4 / pytest 9.1.1 (Linux) |
-| Independently reproduced on | Windows, Python 3.14.5 / NumPy 2.4.4 / pytest 9.1.1 |
-
----
-
-## Tests
-
-```bash
-python -m pytest tests/ -q      # 32 passed
-python experiments.py           # Tables 1--4
-python verify_theorem2.py       # standalone query-complexity verification
-```
-
-| File | Covers |
-|---|---|
-| `tests/test_core.py` | closed-form identities (affine ⇒ SAI 1, recovery probability 1; bent ⇒ SAI `2ⁿ`, `Δ = 0`, `\|τ − ½\| = 2^(−n/2−1)`; Parseval; `P(recover) = W_g(0)²/4ⁿ`), plus cross-validation against an independent NumPy statevector simulator to floating-point precision |
-| `tests/test_hbplus.py` | the HB+ two-secret joint-input extension |
-| `tests/test_information.py` | Parseval, affine/bent/odd-semibent endpoints, the `MI = n − H` identity on arbitrary instances, the Theorem 9 bound, stabilizer subgroup closure, and the `N = 9378` bound formula |
-| `tests/test_v3_modules.py` | v2/v3 `LeakageReport` fields, `random_anf` non-cancellation, keyed DLPN profiling & shift invariance, QGL prefix-pruned heavy coefficient extraction, traced-out HB+ & HB# column masking, and NISQ depolarizing channel boundary conditions |
-| `verify_theorem2.py` | confirms the corrected bound empirically and shows why a version constant in the number of near-tied competitors is not a valid guarantee |
-
----
-
-## How it works
-
-1. **Walsh transform.** Compute `W_g(u)` by in-house fast Walsh-Hadamard transform in `O(n·2ⁿ)`.
-2. **Specialization (Lemma 1).** The BV measurement distribution is `P_g(x ⊕ w)` — the spectrum, shifted by the secret. The attacker's outcome distribution *is* the spectrum.
-3. **Read off the metrics.** Entropy gives leakage in bits; translation symmetry gives identifiability; the peak-to-runner-up gap gives query complexity; `W_g(0)` gives the classical noise rate and the trade-off bound.
-
-Exact for `n ≤ 24` (`2²⁴` floats). Beyond that the tool raises rather than silently exhausting memory; sampling-based analysis would be required.
-
----
-
-## Repository layout
-
-```
-.
-├── aegisguard_q/            # the package (zero-dependency core)
-│   ├── core.py              #   Walsh engine + leakage report
-│   ├── information.py       #   MI, stabilizer, SAI, gap, mode bound   [v3.0]
-│   ├── noise_functions.py   #   benchmark and keyed DLPN constructors
-│   ├── keyed_dlpn.py        #   keyed-family profilers                 [v3.0]
-│   ├── qgl_attack.py        #   heavy-Walsh/QGL attacks                [v3.0]
-│   ├── protocols.py         #   HB+ and HB# physical models            [v3.0]
-│   ├── nisq_channel.py      #   depolarizing-channel metrics           [v3.0]
-│   ├── report.py            #   JSON + markdown export
-│   └── cli.py               #   command-line interface
-├── tests/                   # 32 tests: regression + v3 module coverage
-├── experiments.py           # regenerates Tables 1--4                  [v3.0]
-├── verify_theorem2.py       # standalone query-complexity verification
-├── hb_superposition_sim*.py # independent statevector simulators
-├── paper.tex                # accompanying manuscript source
-├── paper.pdf                # compiled manuscript
-├── CITATION.cff             # citation metadata
-├── requirements.txt         # test/simulator deps (numpy, pytest)
-└── pyproject.toml           # packaging (core deps: none)
-```
-
----
-
-## Scope and limitations
-
-This is a **research characterization and tool**, built on established techniques (Walsh/Fourier sampling, quantum Goldreich-Levin) applied to a setting where they had not been applied before. It is deliberately explicit about what it does *not* establish:
-
-- **With a public `g`, the construction is classically broken outright** by Gaussian elimination — no LPN hardness needed. The object of study is Q2 leakage structure, not a deployable protocol. Classical hardness is open only for **keyed / secret-`g`** variants `e = g_s(a)`, where that linear-algebra recovery no longer applies.
-- **Theorem 8 is a statistical upper bound, not a polynomial-query security statement.** If `γ` is exponentially small the required `N` can be exponential; polynomial-query recovery needs an inverse-polynomial lower bound on `γ`.
-- **The HB+ section is an idealized joint-input extension**, not a protocol-level attack. A real attack would require coherently representing the message flow and the source of the blinding vector `b`.
-- **Version 3.0 extensions (`keyed_dlpn`, `qgl_attack`, `protocols`, `nisq_channel`)** provide baseline empirical profilers for keyed `g_s`, HB# column masking, traced-out HB+ entanglement, and depolarizing channels; asymptotic classical hardness proofs for keyed DLPN remain open.
-- Results assume the standard Q2 noise model: noise sampled once per oracle call, independent of the coherent input.
-- **No priority claim is made.** The literature survey in the manuscript is systematic and every reference checked, but no search certifies novelty; independent review by a subject-area specialist remains appropriate.
-
----
-
-## Citing
-
-See `CITATION.cff` — GitHub renders a "Cite this repository" button from it.
-
-Please cite **both** the software and the manuscript:
-
-> Kumar, J. (2026). *AegisGuard-Q: Quantum-leakage static analysis for deterministic-LPN noise functions*, version 3.0.0. https://github.com/jayant-kumar-dev/Aegisguard-Q
-
-> Kumar, J. (2026). *Spectral Characterization of Superposition Leakage in Deterministic-LPN Authentication Protocols*, Version 2.0. Zenodo. https://doi.org/10.5281/zenodo.21934507
-
-And the foundational work this builds on:
-
-> Cid, C., Elkouss, D., & Goulão, M. (2026). Superposition Attacks Against LPN-Based Authentication Protocols. *IACR Communications in Cryptology*, 3(1):17. https://doi.org/10.62056/abhey7n4e
-
----
-
-## License
-
-MIT.
+## 🧭 Decision Flowchart: Evaluating Any Deterministic Noise Candidate
